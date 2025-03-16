@@ -8,7 +8,7 @@
   "env": {
     "NEXTAUTH_URL": "https://my-app-hotaqs-projects.vercel.app",
     "NEXTAUTH_SECRET": "your-nextauth-secret",
-    "DATABASE_URL": "${DATABASE_URL}",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_0gNzs1dPUvTF@ep-dry-cake-a8zunxhe-pooler.eastus2.azure.neon.tech/neondb?sslmode=require",
     "GOOGLE_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
     "GOOGLE_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET}",
     "FACEBOOK_CLIENT_ID": "${FACEBOOK_CLIENT_ID}",
