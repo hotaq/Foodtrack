@@ -1,95 +1,94 @@
-# Meal Tracker
+# Meal Tracker App
 
-A web application for tracking daily meals with photo submissions. Users can upload photos of their breakfast, lunch, and dinner to maintain a streak of consistent eating habits.
+A modern web application for tracking meals with social features, authentication, and food verification.
 
 ## Features
 
-- **User Authentication**: Register and login system
-- **Meal Photo Uploads**: Submit photos for breakfast, lunch, and dinner
-- **Streak Tracking**: Track consecutive days of complete meal submissions
-- **Admin Dashboard**: View user statistics and leaderboard
-- **Responsive Design**: Works on mobile and desktop devices
+- User authentication with email/password, Google, and Facebook
+- Password reset functionality
+- Meal tracking with image uploads
+- Food verification using AI
+- Favorites system
+- Streaks for consistent meal tracking
+- Responsive design
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15, React 19, Tailwind CSS 4
-- **Backend**: Next.js API Routes
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: NextAuth.js
-- **File Storage**: EdgeStore
-- **Styling**: Custom vintage-style black and teal theme
+- Next.js 14 (App Router)
+- TypeScript
+- Prisma ORM
+- PostgreSQL
+- NextAuth.js
+- Tailwind CSS
 
-## Getting Started
+## Deployment on Vercel
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- PostgreSQL database
+1. A [Vercel](https://vercel.com) account
+2. A PostgreSQL database (e.g., [Neon](https://neon.tech), [Supabase](https://supabase.com), etc.)
+3. OAuth credentials for Google and Facebook (optional)
+4. SMTP server for email functionality (password reset)
 
-### Installation
+### Steps to Deploy
+
+1. **Fork or clone this repository to your GitHub account**
+
+2. **Connect your GitHub repository to Vercel**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "Add New" > "Project"
+   - Select your repository
+   - Vercel will automatically detect Next.js
+
+3. **Configure environment variables**
+   - In the Vercel project settings, add the following environment variables:
+
+   ```
+   DATABASE_URL=your-postgresql-connection-string
+   NEXTAUTH_SECRET=your-random-secret-key
+   
+   # OAuth (optional, but required for social login)
+   GOOGLE_CLIENT_ID=your-google-client-id
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   FACEBOOK_CLIENT_ID=your-facebook-client-id
+   FACEBOOK_CLIENT_SECRET=your-facebook-client-secret
+   
+   # Email (required for password reset)
+   SMTP_HOST=your-smtp-host
+   SMTP_PORT=your-smtp-port
+   SMTP_USER=your-smtp-username
+   SMTP_PASSWORD=your-smtp-password
+   EMAIL_FROM=your-email-address
+   ```
+
+4. **Deploy**
+   - Click "Deploy"
+   - Vercel will build and deploy your application
+
+5. **Run database migrations**
+   - After deployment, you need to run Prisma migrations
+   - You can do this by connecting to your Vercel project via CLI:
+   ```
+   vercel login
+   vercel link
+   vercel env pull .env
+   npx prisma migrate deploy
+   ```
+
+### Troubleshooting
+
+- **Database connection issues**: Ensure your database allows connections from Vercel's IP addresses
+- **OAuth errors**: Verify that your OAuth redirect URIs include your Vercel deployment URL
+- **Email sending failures**: Check SMTP credentials and ensure your email provider allows sending from your deployment
+
+## Local Development
 
 1. Clone the repository
-```bash
-git clone https://github.com/yourusername/meal-tracker.git
-cd meal-tracker
-```
-
-2. Install dependencies
-```bash
-npm install
-```
-
-3. Set up environment variables
-Create a `.env` file in the root directory with the following variables:
-```
-# Database
-DATABASE_URL="postgresql://username:password@localhost:5432/meal_tracker?schema=public"
-
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-nextauth-secret"
-
-# EdgeStore
-EDGE_STORE_ACCESS_KEY="your-edgestore-access-key"
-EDGE_STORE_SECRET_KEY="your-edgestore-secret-key"
-```
-
-4. Set up the database
-```bash
-npx prisma migrate dev --name init
-```
-
-5. Run the development server
-```bash
-npm run dev
-```
-
-6. Open [http://localhost:3000](http://localhost:3000) in your browser
-
-### Creating an Admin User
-
-To create an admin user or promote an existing user to admin:
-
-1. Run the admin creation script:
-```bash
-node scripts/create-admin.js
-```
-
-2. Follow the prompts to enter admin name, email, and password
-
-3. The script will either create a new admin user or update an existing user with admin privileges
-
-4. Admin users can access the admin dashboard at `/admin` to view user statistics, meal data, and manage the application
-
-## Project Structure
-
-- `/app`: Next.js app directory with pages and API routes
-- `/components`: React components
-- `/lib`: Utility functions and configurations
-- `/prisma`: Database schema and migrations
-- `/public`: Static assets
-- `/scripts`: Utility scripts for administration
+2. Install dependencies: `npm install`
+3. Copy `.env.example` to `.env` and fill in the values
+4. Run Prisma migrations: `npx prisma migrate dev`
+5. Start the development server: `npm run dev`
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT

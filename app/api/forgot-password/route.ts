@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       data: {
         resetToken,
         resetTokenExpiry,
-      },
+      } as any,
     });
 
     // Create reset URL
