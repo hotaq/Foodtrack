@@ -19,6 +19,7 @@ export const authOptions: NextAuthOptions = {
     signOut: "/",
     error: "/error",
   },
+  debug: process.env.NODE_ENV === "development",
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -36,11 +37,14 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.emailOrUsername || !credentials?.password) {
-          return null;
+          console.log("Missing credentials");
+          throw new Error("Missing credentials");
         }
 
         // Check if input is email or username
         const isEmail = credentials.emailOrUsername.includes('@');
+        
+        console.log(`Attempting to find user by ${isEmail ? 'email' : 'username'}: ${credentials.emailOrUsername}`);
         
         // Find user by email or name (username)
         const user = await db.user.findFirst({
@@ -49,21 +53,31 @@ export const authOptions: NextAuthOptions = {
             : { name: credentials.emailOrUsername },
         });
 
-        if (!user || !user.password) {
-          return null;
+        if (!user) {
+          console.log("User not found");
+          throw new Error("User not found");
+        }
+
+        if (!user.password) {
+          console.log("User has no password (OAuth account)");
+          throw new Error("This account doesn't have a password (try using social login)");
         }
 
         // Check if user is banned
         if ((user as any).status === 'BANNED' || user.isBanned) {
+          console.log("User is banned");
           throw new Error('Your account has been banned');
         }
 
+        console.log("Comparing passwords");
         const isPasswordValid = await compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
-          return null;
+          console.log("Invalid password");
+          throw new Error("Invalid password");
         }
 
+        console.log("Authentication successful");
         return {
           id: user.id,
           email: user.email,

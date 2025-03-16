@@ -36,20 +36,32 @@ function LoginContent() {
     setSuccess("");
 
     try {
+      console.log("Attempting to sign in with:", { emailOrUsername, password: "***" });
+      
       const result = await signIn("credentials", {
         emailOrUsername,
         password,
         redirect: false,
       });
 
+      console.log("Sign in result:", result);
+
       if (result?.error) {
-        setError("Invalid email/username or password");
+        console.error("Sign in error:", result.error);
+        setError(`Authentication failed: ${result.error}`);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!result?.ok) {
+        setError("Authentication failed. Please check your credentials.");
         setIsLoading(false);
         return;
       }
 
       router.push("/dashboard");
     } catch (error) {
+      console.error("Sign in exception:", error);
       setError("Something went wrong. Please try again.");
       setIsLoading(false);
     }
