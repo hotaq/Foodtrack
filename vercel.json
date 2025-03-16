@@ -9,21 +9,7 @@
     "NEXTAUTH_URL": "https://my-app-hotaqs-projects.vercel.app",
     "NEXTAUTH_SECRET": "your-nextauth-secret",
     "DATABASE_URL": "postgresql://neondb_owner:npg_0gNzs1dPUvTF@ep-dry-cake-a8zunxhe-pooler.eastus2.azure.neon.tech/neondb?sslmode=require",
-    "GOOGLE_CLIENT_ID": "${GOOGLE_CLIENT_ID}",
-    "GOOGLE_CLIENT_SECRET": "${GOOGLE_CLIENT_SECRET}",
-    "FACEBOOK_CLIENT_ID": "${FACEBOOK_CLIENT_ID}",
-    "FACEBOOK_CLIENT_SECRET": "${FACEBOOK_CLIENT_SECRET}",
-    "SMTP_HOST": "${SMTP_HOST}",
-    "SMTP_PORT": "${SMTP_PORT}",
-    "SMTP_USER": "${SMTP_USER}",
-    "SMTP_PASSWORD": "${SMTP_PASSWORD}",
-    "EMAIL_FROM": "${EMAIL_FROM}",
     "EDGE_STORE_ACCESS_KEY": "xS0zKPdhRDn6xcTc01ncdm1S4nGMWVzA",
     "EDGE_STORE_SECRET_KEY": "6jzepoThSlOqfmb9yGhydaq2Jot6roGYggZfkuMmhHDqhNki"
-  },
-  "build": {
-    "env": {
-      "DATABASE_URL": "postgresql://neondb_owner:npg_0gNzs1dPUvTF@ep-dry-cake-a8zunxhe-pooler.eastus2.azure.neon.tech/neondb?sslmode=require"
-    }
   }
 } 
