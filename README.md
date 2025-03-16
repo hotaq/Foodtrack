@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Meal Tracker
+
+A web application for tracking daily meals with photo submissions. Users can upload photos of their breakfast, lunch, and dinner to maintain a streak of consistent eating habits.
+
+## Features
+
+- **User Authentication**: Register and login system
+- **Meal Photo Uploads**: Submit photos for breakfast, lunch, and dinner
+- **Streak Tracking**: Track consecutive days of complete meal submissions
+- **Admin Dashboard**: View user statistics and leaderboard
+- **Responsive Design**: Works on mobile and desktop devices
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, Tailwind CSS 4
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: NextAuth.js
+- **File Storage**: EdgeStore
+- **Styling**: Custom vintage-style black and teal theme
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ and npm
+- PostgreSQL database
+
+### Installation
+
+1. Clone the repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/meal-tracker.git
+cd meal-tracker
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables
+Create a `.env` file in the root directory with the following variables:
+```
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/meal_tracker?schema=public"
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-nextauth-secret"
 
-## Learn More
+# EdgeStore
+EDGE_STORE_ACCESS_KEY="your-edgestore-access-key"
+EDGE_STORE_SECRET_KEY="your-edgestore-secret-key"
+```
 
-To learn more about Next.js, take a look at the following resources:
+4. Set up the database
+```bash
+npx prisma migrate dev --name init
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Run the development server
+```bash
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## Deploy on Vercel
+### Creating an Admin User
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+To create an admin user or promote an existing user to admin:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Run the admin creation script:
+```bash
+node scripts/create-admin.js
+```
+
+2. Follow the prompts to enter admin name, email, and password
+
+3. The script will either create a new admin user or update an existing user with admin privileges
+
+4. Admin users can access the admin dashboard at `/admin` to view user statistics, meal data, and manage the application
+
+## Project Structure
+
+- `/app`: Next.js app directory with pages and API routes
+- `/components`: React components
+- `/lib`: Utility functions and configurations
+- `/prisma`: Database schema and migrations
+- `/public`: Static assets
+- `/scripts`: Utility scripts for administration
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
