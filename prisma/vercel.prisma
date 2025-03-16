@@ -1,0 +1,10 @@
+// This is a special Prisma schema file for Vercel deployment
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://neondb_owner:npg_0gNzs1dPUvTF@ep-dry-cake-a8zunxhe-pooler.eastus2.azure.neon.tech/neondb?sslmode=require"
+  relationMode = "foreignKeys"
+} 

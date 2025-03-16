@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "node scripts/build.js",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "deploy": "node scripts/deploy-vercel.js",
-    "deploy:new": "node scripts/deploy-vercel-new.js"
+    "deploy:new": "node scripts/deploy-vercel-new.js",
+    "deploy:vercel": "node scripts/deploy-to-vercel.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",
