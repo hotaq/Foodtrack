@@ -2,7 +2,7 @@
 const { execSync } = require('child_process');
 
 // Hardcoded database URL to ensure it's always available
-const DATABASE_URL = "postgresql://neondb_owner:npg_0gNzs1dPUvTF@ep-dry-cake-a8zunxhe-pooler.eastus2.azure.neon.tech/neondb?sslmode=require";
+const DATABASE_URL = "postgresql://neondb_owner:npg_HL4UfuYA8lpJ@ep-super-breeze-a1ggrbbp-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
 
 // Set the DATABASE_URL environment variable
 process.env.DATABASE_URL = DATABASE_URL;

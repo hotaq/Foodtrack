@@ -8,7 +8,7 @@
   "env": {
     "NEXTAUTH_URL": "https://my-app-hotaqs-projects.vercel.app",
     "NEXTAUTH_SECRET": "your-nextauth-secret",
-    "DATABASE_URL": "postgresql://neondb_owner:npg_0gNzs1dPUvTF@ep-dry-cake-a8zunxhe-pooler.eastus2.azure.neon.tech/neondb?sslmode=require",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_HL4UfuYA8lpJ@ep-super-breeze-a1ggrbbp-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
     "EDGE_STORE_ACCESS_KEY": "xS0zKPdhRDn6xcTc01ncdm1S4nGMWVzA",
     "EDGE_STORE_SECRET_KEY": "6jzepoThSlOqfmb9yGhydaq2Jot6roGYggZfkuMmhHDqhNki"
   }

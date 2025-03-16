@@ -11,7 +11,9 @@
     "postinstall": "prisma generate",
     "deploy": "node scripts/deploy-vercel.js",
     "deploy:new": "node scripts/deploy-vercel-new.js",
-    "deploy:vercel": "node scripts/deploy-to-vercel.js"
+    "deploy:vercel": "node scripts/deploy-to-vercel.js",
+    "deploy:simple": "node scripts/deploy-simple.js",
+    "db:migrate": "node scripts/migrate-db.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",

@@ -11,7 +11,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   // Use a hardcoded URL to ensure it's always available
-  url = "postgresql://neondb_owner:npg_0gNzs1dPUvTF@ep-dry-cake-a8zunxhe-pooler.eastus2.azure.neon.tech/neondb?sslmode=require"
+  url = "postgresql://neondb_owner:npg_HL4UfuYA8lpJ@ep-super-breeze-a1ggrbbp-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
   relationMode = "foreignKeys"
 }
 
