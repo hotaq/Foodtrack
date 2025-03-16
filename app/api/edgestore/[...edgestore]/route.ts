@@ -1,11 +1,7 @@
-import { initEdgeStore } from '@edgestore/server';
 import { createEdgeStoreNextHandler } from '@edgestore/server/adapters/next/app';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { EdgeStoreProvider } from '@edgestore/server/providers/edgestore';
-
-// Initialize EdgeStore
-const es = initEdgeStore.create();
+import { es } from '@/lib/edgestore-server';
 
 /**
  * This is the main router for the Edge Store buckets.
@@ -24,10 +20,6 @@ const edgeStoreRouter = es.router({
 
 const handler = createEdgeStoreNextHandler({
   router: edgeStoreRouter,
-  provider: EdgeStoreProvider({
-    accessKey: "xS0zKPdhRDn6xcTc01ncdm1S4nGMWVzA",
-    secretKey: "6jzepoThSlOqfmb9yGhydaq2Jot6roGYggZfkuMmhHDqhNki",
-  }),
 });
 
 export { handler as GET, handler as POST };
