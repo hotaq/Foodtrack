@@ -32,8 +32,25 @@ export async function POST(
       );
     }
 
-    // For now, we'll just return a success response
-    // This will be updated once the Favorite model is properly set up
+    // Check if already favorited using raw SQL
+    const existingFavorites = await db.$queryRaw`
+      SELECT * FROM "Favorite" 
+      WHERE "userId" = ${session.user.id} AND "mealId" = ${mealId}
+    `;
+
+    if (Array.isArray(existingFavorites) && existingFavorites.length > 0) {
+      return NextResponse.json(
+        { message: "Meal already in favorites" },
+        { status: 409 }
+      );
+    }
+
+    // Add to favorites using raw SQL
+    await db.$executeRaw`
+      INSERT INTO "Favorite" ("id", "userId", "mealId", "createdAt")
+      VALUES (gen_random_uuid(), ${session.user.id}, ${mealId}, NOW())
+    `;
+
     return NextResponse.json(
       { message: "Added to favorites" },
       { status: 201 }
@@ -62,8 +79,27 @@ export async function DELETE(
       );
     }
 
-    // For now, we'll just return a success response
-    // This will be updated once the Favorite model is properly set up
+    const { mealId } = params;
+
+    // Check if the favorite exists using raw SQL
+    const favorites = await db.$queryRaw`
+      SELECT * FROM "Favorite" 
+      WHERE "userId" = ${session.user.id} AND "mealId" = ${mealId}
+    `;
+
+    if (!Array.isArray(favorites) || favorites.length === 0) {
+      return NextResponse.json(
+        { message: "Favorite not found" },
+        { status: 404 }
+      );
+    }
+
+    // Remove from favorites using raw SQL
+    await db.$executeRaw`
+      DELETE FROM "Favorite" 
+      WHERE "userId" = ${session.user.id} AND "mealId" = ${mealId}
+    `;
+
     return NextResponse.json(
       { message: "Removed from favorites" },
       { status: 200 }

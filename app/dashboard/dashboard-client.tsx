@@ -304,6 +304,15 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
                   Analytics
                 </MotionButton>
               </Link>
+              <Link href="/favorites">
+                <MotionButton 
+                  className="vintage-button bg-primary text-sm py-2 px-4"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Favorites
+                </MotionButton>
+              </Link>
               <Link href="/settings">
                 <MotionButton 
                   className="vintage-button bg-primary text-sm py-2 px-4"

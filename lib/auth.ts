@@ -2,6 +2,8 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { NextAuthOptions } from "next-auth";
 import { compare } from "bcrypt";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
 
 import { db } from "@/lib/db";
 import { Adapter } from "next-auth/adapters";
@@ -18,6 +20,14 @@ export const authOptions: NextAuthOptions = {
     error: "/error",
   },
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    }),
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID as string,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -65,12 +75,13 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (account && user) {
         return {
           ...token,
           id: user.id,
-          role: user.role,
+          role: user.role || "USER",
         };
       }
       return token;
@@ -84,6 +95,19 @@ export const authOptions: NextAuthOptions = {
           role: token.role,
         },
       };
+    },
+    async signIn({ user, account, profile }) {
+      // Allow OAuth providers to sign in
+      if (account?.provider === "google" || account?.provider === "facebook") {
+        return true;
+      }
+
+      // For credentials, we already checked in authorize
+      if (account?.provider === "credentials") {
+        return true;
+      }
+
+      return true;
     },
   },
 }; 

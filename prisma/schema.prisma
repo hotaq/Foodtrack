@@ -25,6 +25,8 @@ model User {
   banReason     String?
   banDate       DateTime?
   isBanned      Boolean   @default(false)
+  resetToken    String?
+  resetTokenExpiry DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   

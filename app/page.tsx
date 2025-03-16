@@ -22,7 +22,7 @@ export default function Home() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <h1 className="text-3xl font-bold vintage-text text-primary">Meal Tracker</h1>
+              <h1 className="text-3xl font-bold vintage-text text-primary">Meal Check</h1>
             </MotionDiv>
             <MotionDiv
               initial={{ opacity: 0, x: 20 }}
@@ -31,12 +31,12 @@ export default function Home() {
               className="space-x-4"
             >
               <Link href="/login">
-                <MotionButton className="vintage-button">
+                <MotionButton className="vintage-button px-2 py-1.5">
                   Login
                 </MotionButton>
               </Link>
               <Link href="/register">
-                <MotionButton className="vintage-button bg-secondary">
+                <MotionButton className="vintage-button bg-secondary px-2 py-1 text-gray-900">
                   Register
                 </MotionButton>
               </Link>
@@ -62,7 +62,7 @@ export default function Home() {
                   Submit photos of your meals at specific times to ensure you're eating all three meals each day. Build your streak and stay consistent with your eating habits.
                 </p>
                 <Link href="/register">
-                  <MotionButton className="vintage-button inline-block">
+                  <MotionButton className="vintage-button inline-block px-2 py-1.5 bg-primary text-white">
                     Get Started
                   </MotionButton>
                 </Link>
@@ -74,7 +74,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20"></div>
                 <div className="relative h-full w-full overflow-hidden flex items-center justify-center bg-card">
                   <div className="text-center p-8">
-                    <div className="text-4xl font-bold text-primary mb-4">Meal Tracker</div>
+                    <div className="text-4xl font-bold text-primary mb-4">Meal Check</div>
                     <p className="text-gray-300">Track your breakfast, lunch, and dinner</p>
                   </div>
                 </div>
@@ -98,7 +98,7 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <MotionDiv variants={scaleIn} className="bg-card p-6 rounded-lg">
                 <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xl font-bold mb-4">1</div>
-                <h3 className="text-xl font-bold mb-2 vintage-text">Register</h3>
+                <h3 className="text-xl font-bold mb-2 vintage-text px-2 py-1.6">Register</h3>
                 <p className="text-gray-300">Create your account and set up your profile to get started.</p>
               </MotionDiv>
               <MotionDiv variants={scaleIn} className="bg-card p-6 rounded-lg">
@@ -130,7 +130,7 @@ export default function Home() {
                 Join our community of users who are committed to maintaining healthy eating habits through consistent meal tracking.
               </p>
               <Link href="/register">
-                <MotionButton className="vintage-button inline-block">
+                <MotionButton className="vintage-button inline-block px-2 py-1.5 bg-primary text-white">
                   Create Account
                 </MotionButton>
               </Link>

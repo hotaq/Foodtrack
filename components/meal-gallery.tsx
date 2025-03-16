@@ -68,29 +68,41 @@ export default function MealGallery({ meals, currentUserId, favoriteIds }: MealG
     
     try {
       const isFavorite = favorites.has(mealId);
-      const method = isFavorite ? 'DELETE' : 'POST';
       
-      const response = await fetch(`/api/favorites/${mealId}`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const newFavorites = new Set(favorites);
+      if (isFavorite) {
+        // Remove from favorites
+        const response = await fetch(`/api/favorites/${mealId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
         
-        if (isFavorite) {
+        if (response.ok) {
+          const newFavorites = new Set(favorites);
           newFavorites.delete(mealId);
+          setFavorites(newFavorites);
           toast.success('Removed from favorites');
         } else {
-          newFavorites.add(mealId);
-          toast.success('Added to favorites');
+          toast.error('Failed to remove from favorites');
         }
-        
-        setFavorites(newFavorites);
       } else {
-        toast.error('Failed to update favorites');
+        // Add to favorites
+        const response = await fetch(`/api/favorites/${mealId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const newFavorites = new Set(favorites);
+          newFavorites.add(mealId);
+          setFavorites(newFavorites);
+          toast.success('Added to favorites');
+        } else {
+          toast.error('Failed to add to favorites');
+        }
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
