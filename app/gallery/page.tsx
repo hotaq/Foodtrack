@@ -6,6 +6,10 @@ import { db } from "@/lib/db";
 import MealGallery, { MealImage } from "@/components/meal-gallery";
 import { AlertTriangle } from "lucide-react";
 
+interface Favorite {
+  mealId: string;
+}
+
 export default async function GalleryPage() {
   const session = await getServerSession(authOptions);
 
@@ -24,15 +28,24 @@ export default async function GalleryPage() {
           id: true,
           name: true,
           image: true,
+          role: true,
         }
       }
     },
     take: 100, // Limit to 100 most recent meals
   });
 
-  // For now, we'll use an empty array for favorites
-  // This will be updated once the Favorite model is properly set up
-  const favoriteIds: string[] = [];
+  // Get user favorites
+  const favorites = await db.favorite.findMany({
+    where: {
+      userId: session.user.id,
+    },
+    select: {
+      mealId: true,
+    },
+  });
+
+  const favoriteIds = favorites.map((fav: Favorite) => fav.mealId);
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,7 +79,8 @@ export default async function GalleryPage() {
         <MealGallery 
           meals={meals as MealImage[]} 
           currentUserId={session.user.id} 
-          favoriteIds={favoriteIds} 
+          favoriteIds={favoriteIds}
+          userRole={session.user.role}
         />
       </main>
     </div>

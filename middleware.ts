@@ -21,7 +21,7 @@ export function middleware(request: NextRequest) {
   // Content Security Policy
   response.headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.edgestore.dev; font-src 'self'; connect-src 'self' https://*.vercel.app https://*.edgestore.dev https://accounts.google.com https://graph.facebook.com;"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://*.edgestore.dev https://*.amazonaws.com; font-src 'self'; connect-src 'self' https://*.vercel.app https://*.edgestore.dev https://accounts.google.com https://graph.facebook.com https://localhost:* http://localhost:* https://*.amazonaws.com;"
   );
   
   return response;

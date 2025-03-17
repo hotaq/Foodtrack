@@ -95,52 +95,55 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check if user is authenticated and is an admin
     const session = await getServerSession(authOptions);
+
+    // Check if user is authenticated and is an admin
     if (!session || !session.user || session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return new NextResponse("Unauthorized", { status: 403 });
     }
 
     const userId = params.id;
 
-    // Get the user
+    // Check if user exists
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: {
+        id: userId,
+      },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
+      return new NextResponse("User not found", { status: 404 });
     }
 
-    // Delete user's meals
-    await db.meal.deleteMany({
-      where: { userId },
-    });
+    // Check if trying to delete an admin account
+    if (user.role === "ADMIN") {
+      return new NextResponse("Cannot delete admin accounts", { status: 403 });
+    }
 
     // Delete user's streak
     await db.streak.deleteMany({
-      where: { userId },
+      where: {
+        userId: userId,
+      },
     });
 
-    // Delete user
+    // Delete user's meals
+    await db.meal.deleteMany({
+      where: {
+        userId: userId,
+      },
+    });
+
+    // Delete the user
     await db.user.delete({
-      where: { id: userId },
+      where: {
+        id: userId,
+      },
     });
 
-    return NextResponse.json({
-      message: "User deleted successfully",
-    });
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error("Error deleting user:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    console.error("[DELETE_USER_ERROR]", error);
+    return new NextResponse("Internal error", { status: 500 });
   }
 } 

@@ -16,7 +16,9 @@ import {
   ChevronUp,
   Ban,
   Key,
-  BarChart
+  BarChart,
+  Trash2,
+  CheckCircle
 } from 'lucide-react';
 import { 
   BarChart as RechartsBarChart, 
@@ -38,6 +40,7 @@ import {
   LabelList
 } from 'recharts';
 import { toast } from 'react-hot-toast';
+import React from 'react';
 
 interface User {
   id: string;
@@ -92,10 +95,13 @@ export default function AdminDashboard({
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showBanModal, setShowBanModal] = useState(false);
+  const [showUnbanModal, setShowUnbanModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showStreakModal, setShowStreakModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [banReason, setBanReason] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [users, setUsers] = useState<User[]>(initialUsers);
@@ -256,6 +262,69 @@ export default function AdminDashboard({
     } catch (error) {
       console.error("Error updating streak:", error);
       toast.error("Failed to update streak");
+    }
+  };
+
+  // Function to handle user unban
+  const handleUnbanUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/unban`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        toast.success('User unbanned successfully');
+        setShowUnbanModal(false);
+        
+        // Update the user's status in the UI
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === selectedUser.id 
+              ? { ...user, status: 'ACTIVE', isBanned: false } 
+              : user
+          )
+        );
+      } else {
+        toast.error('Failed to unban user');
+      }
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      toast.error('An error occurred while unbanning the user');
+    }
+  };
+
+  // Function to handle account deletion
+  const handleDeleteAccount = async () => {
+    if (!selectedUser) return;
+    
+    if (deleteConfirmation !== selectedUser.email) {
+      toast.error("Email confirmation doesn't match");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        toast.success('Account deleted successfully');
+        setShowDeleteModal(false);
+        setDeleteConfirmation('');
+        
+        // Remove the user from the UI
+        setUsers(prevUsers => prevUsers.filter(user => user.id !== selectedUser.id));
+      } else {
+        toast.error('Failed to delete account');
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('An error occurred while deleting the account');
     }
   };
 
@@ -555,9 +624,8 @@ export default function AdminDashboard({
               </thead>
               <tbody>
                 {sortedUsers.map((user) => (
-                  <>
+                  <React.Fragment key={user.id}>
                     <tr 
-                      key={user.id} 
                       className="border-b border-primary/10 hover:bg-primary/5"
                     >
                       <td className="py-2 px-4 cursor-pointer" onClick={() => toggleUserExpand(user.id)}>
@@ -595,18 +663,35 @@ export default function AdminDashboard({
                           >
                             <Key size={16} className="text-primary" />
                           </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedUser(user);
-                              setShowBanModal(true);
-                            }}
-                            className="p-1 hover:bg-red-500/10 rounded"
-                            title="Ban User"
-                            disabled={user.role === 'ADMIN'}
-                          >
-                            <Ban size={16} className={user.role === 'ADMIN' ? 'text-gray-500' : 'text-red-500'} />
-                          </button>
+                          
+                          {(user.status === 'BANNED' || user.isBanned) ? (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUser(user);
+                                setShowUnbanModal(true);
+                              }}
+                              className="p-1 hover:bg-green-500/10 rounded"
+                              title="Unban User"
+                              disabled={user.role === 'ADMIN'}
+                            >
+                              <CheckCircle size={16} className={user.role === 'ADMIN' ? 'text-gray-500' : 'text-green-500'} />
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUser(user);
+                                setShowBanModal(true);
+                              }}
+                              className="p-1 hover:bg-red-500/10 rounded"
+                              title="Ban User"
+                              disabled={user.role === 'ADMIN'}
+                            >
+                              <Ban size={16} className={user.role === 'ADMIN' ? 'text-gray-500' : 'text-red-500'} />
+                            </button>
+                          )}
+                          
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -619,6 +704,19 @@ export default function AdminDashboard({
                             title="Manage Streak"
                           >
                             <Award size={16} className="text-amber-500" />
+                          </button>
+                          
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedUser(user);
+                              setShowDeleteModal(true);
+                            }}
+                            className="p-1 hover:bg-red-500/10 rounded"
+                            title="Delete Account"
+                            disabled={user.role === 'ADMIN'}
+                          >
+                            <Trash2 size={16} className={user.role === 'ADMIN' ? 'text-gray-500' : 'text-red-500'} />
                           </button>
                         </div>
                       </td>
@@ -667,10 +765,10 @@ export default function AdminDashboard({
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
                 {sortedUsers.length === 0 && (
-                  <tr>
+                  <tr key="no-users-found">
                     <td colSpan={6} className="py-4 text-center text-gray-300">
                       No users found
                     </td>
@@ -806,6 +904,74 @@ export default function AdminDashboard({
                 className="vintage-button bg-primary py-2 px-4"
               >
                 Update Streak
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unban User Modal */}
+      {showUnbanModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card p-6 rounded-lg vintage-border max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Unban User: {selectedUser.name || selectedUser.email}</h3>
+            <p className="mb-6">Are you sure you want to unban this user? They will regain access to the platform.</p>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setShowUnbanModal(false);
+                }}
+                className="vintage-button bg-secondary text-sm py-2 px-4"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnbanUser}
+                className="vintage-button bg-green-500 text-sm py-2 px-4"
+              >
+                Unban User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card p-6 rounded-lg vintage-border max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Delete Account: {selectedUser.name || selectedUser.email}</h3>
+            <div className="bg-red-500/10 border border-red-500/30 rounded p-3 mb-4">
+              <p className="text-red-400 text-sm">
+                Warning: This action cannot be undone. All user data, including meals and streak information, will be permanently deleted.
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm mb-1">Confirm by typing the user's email address</label>
+              <input
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => setDeleteConfirmation(e.target.value)}
+                className="w-full p-2 bg-background border border-input rounded-sm"
+                placeholder={selectedUser.email}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmation('');
+                }}
+                className="vintage-button bg-secondary text-sm py-2 px-4"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                className="vintage-button bg-red-500 text-sm py-2 px-4"
+                disabled={deleteConfirmation !== selectedUser.email}
+              >
+                Delete Account
               </button>
             </div>
           </div>

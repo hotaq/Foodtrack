@@ -83,7 +83,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
     mealType: MealType;
     imageUrl: string;
     imageKey: string;
-    foodName: string | null;
+    foodName: string;
   } | null>(null);
   const { edgestore } = useEdgeStore();
 
@@ -125,28 +125,28 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
       // Generate a unique key for the image
       const imageKey = `meal-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      // Verify if the image contains food
+      // Check if the image contains food
       const verificationResult = await verifyFoodImage(res.url);
       
       if (!verificationResult.isFood) {
-        // Show custom modal instead of browser confirm
         setPendingUpload({
           mealType,
           imageUrl: res.url,
-          imageKey,
-          foodName: verificationResult.foodName
+          imageKey: imageKey,
+          foodName: "",
         });
         setShowFoodVerificationModal(true);
+        setIsUploading(null);
         return;
       }
-
-      // Save to database with food name if available
+      
+      // If it's food, upload directly
       await handleMealUpload(
         mealType, 
         res.url, 
         imageKey, 
-        verificationResult.isFood, 
-        verificationResult.foodName
+        true,
+        ""  // Empty food name by default
       );
     } catch (error) {
       console.error("Error uploading file:", error);
@@ -181,7 +181,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
     imageUrl: string, 
     imageKey: string,
     isFood: boolean = true,
-    foodName: string | null = null
+    foodName: string = ""
   ) => {
     try {
       const response = await fetch("/api/meals", {
@@ -238,6 +238,16 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
     setShowFoodVerificationModal(false);
     setPendingUpload(null);
     setIsUploading(null);
+  };
+
+  // Update the food name in the pending upload
+  const handleFoodNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (pendingUpload) {
+      setPendingUpload({
+        ...pendingUpload,
+        foodName: e.target.value
+      });
+    }
   };
 
   return (
@@ -642,6 +652,18 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
                       <p className="text-muted-foreground mb-3">
                         Our AI couldn't detect food in this image. Do you still want to upload it?
                       </p>
+                      
+                      <div className="mb-3">
+                        <label className="block text-sm font-medium mb-1">Food Name (optional)</label>
+                        <input
+                          type="text"
+                          value={pendingUpload.foodName}
+                          onChange={handleFoodNameChange}
+                          placeholder="Enter food name"
+                          className="w-full p-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      
                       <div className="bg-amber-500/10 border border-amber-500/20 rounded-md p-3 mb-3">
                         <p className="text-sm text-amber-400">
                           <span className="font-semibold">Note:</span> Uploading non-food images may affect your streak calculation and could be flagged by moderators.

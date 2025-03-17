@@ -136,7 +136,7 @@ export default function AdminDashboardClient({
                   </tr>
                 ))}
                 {filteredUsers.length === 0 && (
-                  <tr>
+                  <tr key="no-users-found">
                     <td colSpan={5} className="py-4 text-center text-gray-300">
                       No users found
                     </td>
