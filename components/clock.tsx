@@ -49,7 +49,7 @@ export default function Clock({ onStatusChange }: ClockProps = {}) {
     const newStatus = {
       breakfast: hours >= 6 && hours < 9,
       lunch: (hours === 12 || (hours > 12 && hours < 14) || (hours === 14 && minutes <= 50)),
-      dinner: hours >= 16 && hours < 18,
+      dinner: hours >= 16 && hours < 20,
     };
     
     setMealTimeStatus(newStatus);
@@ -119,7 +119,7 @@ export default function Clock({ onStatusChange }: ClockProps = {}) {
               {mealTimeStatus.dinner ? "Available" : "Unavailable"}
             </span>
           </div>
-          <div className="text-xs text-gray-400">4:00 PM - 6:00 PM</div>
+          <div className="text-xs text-gray-400">4:00 PM - 8:00 PM</div>
         </div>
       </div>
     </div>
