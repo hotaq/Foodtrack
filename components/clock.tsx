@@ -39,15 +39,17 @@ export default function Clock({ onStatusChange }: ClockProps = {}) {
     setCurrentTime(thaiTime);
     
     // Check if meal times have passed (using Thai time)
-    // Breakfast: 5:00 AM - 10:00 AM
-    // Lunch: 11:00 AM - 3:00 PM
-    // Dinner: 5:00 PM - 10:00 PM
+    // Updated meal time windows:
+    // Breakfast: 6:00 AM - 9:00 AM
+    // Lunch: 12:00 PM - 2:50 PM
+    // Dinner: 4:00 PM - 6:00 PM
     const hours = thaiTime.getHours();
+    const minutes = thaiTime.getMinutes();
     
     const newStatus = {
-      breakfast: hours >= 5 && hours < 10,
-      lunch: hours >= 11 && hours < 15,
-      dinner: hours >= 17 && hours < 22,
+      breakfast: hours >= 6 && hours < 9,
+      lunch: (hours === 12 || (hours > 12 && hours < 14) || (hours === 14 && minutes <= 50)),
+      dinner: hours >= 16 && hours < 18,
     };
     
     setMealTimeStatus(newStatus);
@@ -101,18 +103,23 @@ export default function Clock({ onStatusChange }: ClockProps = {}) {
               {mealTimeStatus.breakfast ? "Available" : "Unavailable"}
             </span>
           </div>
+          <div className="text-xs text-gray-400 mb-1">6:00 AM - 9:00 AM</div>
+          
           <div className="flex justify-between items-center mb-1">
             <span>Lunch:</span>
             <span className={mealTimeStatus.lunch ? "text-primary" : "text-gray-500"}>
               {mealTimeStatus.lunch ? "Available" : "Unavailable"}
             </span>
           </div>
+          <div className="text-xs text-gray-400 mb-1">12:00 PM - 2:50 PM</div>
+          
           <div className="flex justify-between items-center">
             <span>Dinner:</span>
             <span className={mealTimeStatus.dinner ? "text-primary" : "text-gray-500"}>
               {mealTimeStatus.dinner ? "Available" : "Unavailable"}
             </span>
           </div>
+          <div className="text-xs text-gray-400">4:00 PM - 6:00 PM</div>
         </div>
       </div>
     </div>

@@ -85,7 +85,10 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
     imageKey: string;
     foodName: string;
   } | null>(null);
-  const { edgestore } = useEdgeStore();
+  const [edgeStoreError, setEdgeStoreError] = useState<string | null>(null);
+  
+  // Use optional chaining to handle potential undefined edgestore
+  const edgeStoreClient = useEdgeStore();
 
   // Update meal time status from the Clock component
   const handleMealTimeStatusChange = useCallback((status: MealTimeStatus) => {
@@ -117,8 +120,13 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
     try {
       setIsUploading(mealType);
       
+      // Check if edgestore client is available
+      if (!edgeStoreClient || !edgeStoreClient.edgestore) {
+        throw new Error("EdgeStore client is not available. Please try again later.");
+      }
+      
       // Upload to EdgeStore
-      const res = await edgestore.mealImages.upload({
+      const res = await edgeStoreClient.edgestore.mealImages.upload({
         file,
       });
 
@@ -150,6 +158,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
       );
     } catch (error) {
       console.error("Error uploading file:", error);
+      setEdgeStoreError(error instanceof Error ? error.message : "Failed to upload file");
       setIsUploading(null);
     }
   };
@@ -248,6 +257,27 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
         foodName: e.target.value
       });
     }
+  };
+
+  const renderErrorMessage = () => {
+    if (!edgeStoreError) return null;
+    
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/70">
+        <div className="bg-card p-6 rounded-lg max-w-md w-full">
+          <h3 className="text-xl font-bold mb-4 text-red-500">Upload Error</h3>
+          <p className="mb-6">{edgeStoreError}</p>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setEdgeStoreError(null)}
+              className="px-4 py-2 bg-primary text-white rounded-md"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -699,6 +729,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           )}
         </AnimatePresence>
       </main>
+      {renderErrorMessage()}
     </div>
   );
 } 

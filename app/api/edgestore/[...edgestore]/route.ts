@@ -7,6 +7,14 @@ import { es } from '@/lib/edgestore-server';
 console.log('EDGE_STORE_ACCESS_KEY present:', !!process.env.EDGE_STORE_ACCESS_KEY);
 console.log('EDGE_STORE_SECRET_KEY present:', !!process.env.EDGE_STORE_SECRET_KEY);
 
+// Log the actual keys (first 5 characters only for security)
+if (process.env.EDGE_STORE_ACCESS_KEY) {
+  console.log('EDGE_STORE_ACCESS_KEY (first 5 chars):', process.env.EDGE_STORE_ACCESS_KEY.substring(0, 5));
+}
+if (process.env.EDGE_STORE_SECRET_KEY) {
+  console.log('EDGE_STORE_SECRET_KEY (first 5 chars):', process.env.EDGE_STORE_SECRET_KEY.substring(0, 5));
+}
+
 /**
  * This is the main router for the Edge Store buckets.
  */
@@ -22,6 +30,7 @@ const edgeStoreRouter = es.router({
   }),
 });
 
+// Create the EdgeStore handler with proper error handling
 // @ts-ignore - Ignoring TypeScript errors for now to get the handler working
 const handler = createEdgeStoreNextHandler({
   router: edgeStoreRouter,
