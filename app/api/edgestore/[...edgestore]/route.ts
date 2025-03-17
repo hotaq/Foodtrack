@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { es } from '@/lib/edgestore-server';
 
+// Log environment variables for debugging (will be visible in server logs)
+console.log('EDGE_STORE_ACCESS_KEY present:', !!process.env.EDGE_STORE_ACCESS_KEY);
+console.log('EDGE_STORE_SECRET_KEY present:', !!process.env.EDGE_STORE_SECRET_KEY);
+
 /**
  * This is the main router for the Edge Store buckets.
  */

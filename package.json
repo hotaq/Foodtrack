@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "prisma:generate": "prisma generate",
-    "build": "npm run prisma:generate && node scripts/build.js",
+    "build": "npm run prisma:generate && npm run verify:edgestore && node scripts/build.js",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
@@ -15,10 +15,18 @@
     "deploy:simple": "node scripts/deploy-simple.js",
     "deploy:full": "node scripts/deploy-full.js",
     "deploy:win": "node scripts/deploy-windows.js",
+    "deploy:edgestore": "node scripts/deploy-with-edgestore.js",
     "db:migrate": "node scripts/migrate-db.js",
     "db:init": "node scripts/init-db-vercel.js",
     "db:create-schema": "node scripts/create-schema.js",
-    "vercel:env": "node scripts/vercel-env-setup.js"
+    "vercel:env": "node scripts/vercel-env-setup.js",
+    "verify:edgestore": "node scripts/verify-edgestore.js",
+    "check:edgestore": "node scripts/check-edgestore-config.js",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio",
+    "vercel:dev": "vercel dev",
+    "vercel:prod": "vercel --prod",
+    "vercel:env:setup": "node scripts/vercel-env-setup.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.8.0",
@@ -30,6 +38,7 @@
     "bcrypt": "^5.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.482.0",
     "next": "15.2.2",

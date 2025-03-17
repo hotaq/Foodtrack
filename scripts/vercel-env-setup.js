@@ -1,5 +1,6 @@
 // This script helps you manually set up environment variables in Vercel
 const { execSync } = require('child_process');
+require('dotenv').config();
 
 // Database URL
 const DATABASE_URL = "postgresql://neondb_owner:npg_HL4UfuYA8lpJ@ep-super-breeze-a1ggrbbp-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
@@ -34,4 +35,30 @@ try {
   }
 } catch (error) {
   // Ignore clipboard errors
-} 
+}
+
+console.log('Setting up EdgeStore environment variables in Vercel...');
+
+// Check if the EdgeStore API keys are set
+if (!process.env.EDGE_STORE_ACCESS_KEY || !process.env.EDGE_STORE_SECRET_KEY) {
+  console.error('EdgeStore API keys are missing!');
+  console.error('Make sure to set EDGE_STORE_ACCESS_KEY and EDGE_STORE_SECRET_KEY in your .env file.');
+  process.exit(1);
+}
+
+// Print the commands to set the environment variables in Vercel
+console.log('\nRun the following commands to set the environment variables in Vercel:');
+console.log(`\nvercel env add EDGE_STORE_ACCESS_KEY ${process.env.EDGE_STORE_ACCESS_KEY}`);
+console.log(`vercel env add EDGE_STORE_SECRET_KEY ${process.env.EDGE_STORE_SECRET_KEY}`);
+console.log('\nThen run:');
+console.log('vercel --prod');
+
+console.log('\nOr set them manually in the Vercel dashboard:');
+console.log('1. Go to your Vercel project');
+console.log('2. Go to Settings > Environment Variables');
+console.log('3. Add the following environment variables:');
+console.log('   - EDGE_STORE_ACCESS_KEY: Den3oxUwsX7QcmahFdTlNMBlxcfmCvgV');
+console.log('   - EDGE_STORE_SECRET_KEY: UrTx43v5FYFKkztSbRBz0iiPC3803C4qTLnG49Ae0g3SOTw5');
+console.log('4. Deploy your project again');
+
+process.exit(0); 
