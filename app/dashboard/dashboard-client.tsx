@@ -86,6 +86,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
     foodName: string;
   } | null>(null);
   const [edgeStoreError, setEdgeStoreError] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Use optional chaining to handle potential undefined edgestore
   const edgeStoreClient = useEdgeStore();
@@ -292,11 +293,31 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
             >
               <h1 className="text-2xl font-bold glow-text text-primary">Meal Tracker</h1>
             </MotionDiv>
+            
+            <button 
+              className="md:hidden text-white p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="12" x2="21" y2="12"></line>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+              )}
+            </button>
+            
             <MotionDiv
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
-              className="flex items-center space-x-4"
+              className="hidden md:flex items-center space-x-4"
             >
               <span className="text-sm text-muted-foreground">
                 Welcome, <span className="text-foreground">{user.name}</span>
@@ -374,6 +395,93 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
               </MotionButton>
             </MotionDiv>
           </div>
+          
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <MotionDiv
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="md:hidden mt-4 flex flex-col space-y-3 pb-3"
+              >
+                <span className="text-sm text-muted-foreground">
+                  Welcome, <span className="text-foreground">{user.name}</span>
+                  {user.role === "ADMIN" && (
+                    <span className="ml-2 px-2 py-0.5 text-xs bg-primary/20 text-primary rounded-full">
+                      Admin Mode
+                    </span>
+                  )}
+                </span>
+                {user.role === "ADMIN" && (
+                  <Link href="/admin" className="w-full">
+                    <MotionButton 
+                      className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Admin Dashboard
+                    </MotionButton>
+                  </Link>
+                )}
+                <Link href="/leaderboard" className="w-full">
+                  <MotionButton 
+                    className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Leaderboard
+                  </MotionButton>
+                </Link>
+                <Link href="/gallery" className="w-full">
+                  <MotionButton 
+                    className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    View Gallery
+                  </MotionButton>
+                </Link>
+                <Link href="/analytics" className="w-full">
+                  <MotionButton 
+                    className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Analytics
+                  </MotionButton>
+                </Link>
+                <Link href="/favorites" className="w-full">
+                  <MotionButton 
+                    className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Favorites
+                  </MotionButton>
+                </Link>
+                <Link href="/settings" className="w-full">
+                  <MotionButton 
+                    className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Settings
+                  </MotionButton>
+                </Link>
+                <MotionButton
+                  onClick={() => {
+                    signOut({ redirect: true, callbackUrl: '/' });
+                  }}
+                  className="vintage-button bg-secondary text-sm py-2 px-4 w-full"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Sign Out
+                </MotionButton>
+              </MotionDiv>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 

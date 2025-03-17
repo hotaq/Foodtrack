@@ -10,8 +10,12 @@ import {
   staggerContainer, 
   scaleIn 
 } from "@/components/ui/motion";
+import { useState } from "react";
+import { AnimatePresence } from "framer-motion";
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-primary py-6">
@@ -24,11 +28,33 @@ export default function Home() {
             >
               <h1 className="text-3xl font-bold vintage-text text-primary">Meal Check</h1>
             </MotionDiv>
+            
+            {/* Mobile menu button */}
+            <button 
+              className="md:hidden text-white p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="12" x2="21" y2="12"></line>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+              )}
+            </button>
+            
+            {/* Desktop navigation */}
             <MotionDiv
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
-              className="space-x-4"
+              className="hidden md:flex space-x-4"
             >
               <Link href="/login">
                 <MotionButton className="vintage-button px-2 py-1.5">
@@ -42,6 +68,30 @@ export default function Home() {
               </Link>
             </MotionDiv>
           </div>
+          
+          {/* Mobile menu */}
+          <AnimatePresence>
+            {mobileMenuOpen && (
+              <MotionDiv
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="md:hidden mt-4 flex flex-col space-y-3 pb-3"
+              >
+                <Link href="/login" className="w-full">
+                  <MotionButton className="vintage-button px-2 py-1.5 w-full">
+                    Login
+                  </MotionButton>
+                </Link>
+                <Link href="/register" className="w-full">
+                  <MotionButton className="vintage-button bg-secondary px-2 py-1 text-gray-900 w-full">
+                    Register
+                  </MotionButton>
+                </Link>
+              </MotionDiv>
+            )}
+          </AnimatePresence>
         </div>
       </header>
       
