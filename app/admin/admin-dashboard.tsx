@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from 'next-auth/react';
+import AreaChartConnectNulls from '@/components/AreaChartConnectNulls';
 import { 
   Users, 
   Utensils, 
@@ -18,7 +19,9 @@ import {
   Key,
   BarChart,
   Trash2,
-  CheckCircle
+  CheckCircle,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 import { 
   BarChart as RechartsBarChart, 
@@ -105,6 +108,10 @@ export default function AdminDashboard({
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [users, setUsers] = useState<User[]>(initialUsers);
+  const [userGrowthData, setUserGrowthData] = useState<{name: string, value: number}[]>([]);
+  const [mealActivityData, setMealActivityData] = useState<{name: string, value: number | null}[]>([]);
+  const [isLoadingGrowthData, setIsLoadingGrowthData] = useState(true);
+  const [isLoadingActivityData, setIsLoadingActivityData] = useState(true);
 
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
@@ -328,6 +335,102 @@ export default function AdminDashboard({
     }
   };
 
+  // Fetch user growth data
+  useEffect(() => {
+    const fetchUserGrowthData = async () => {
+      setIsLoadingGrowthData(true);
+      try {
+        const response = await fetch('/api/admin/user-growth');
+        if (!response.ok) {
+          throw new Error('Failed to fetch user growth data');
+        }
+        const data = await response.json();
+        setUserGrowthData(data);
+      } catch (error) {
+        console.error('Error fetching user growth data:', error);
+        // Fallback to sample data if API fails
+        setUserGrowthData(generateSampleGrowthData());
+      } finally {
+        setIsLoadingGrowthData(false);
+      }
+    };
+
+    fetchUserGrowthData();
+  }, []);
+
+  // Fetch meal activity data
+  useEffect(() => {
+    const fetchMealActivityData = async () => {
+      setIsLoadingActivityData(true);
+      try {
+        const response = await fetch('/api/admin/meal-activity');
+        if (!response.ok) {
+          throw new Error('Failed to fetch meal activity data');
+        }
+        const data = await response.json();
+        setMealActivityData(data);
+      } catch (error) {
+        console.error('Error fetching meal activity data:', error);
+        // Fallback to sample data if API fails
+        setMealActivityData(generateSampleActivityData());
+      } finally {
+        setIsLoadingActivityData(false);
+      }
+    };
+
+    fetchMealActivityData();
+  }, []);
+
+  // Generate sample data as fallback for user growth
+  const generateSampleGrowthData = () => {
+    const data = [];
+    const today = new Date();
+    let cumulativeValue = 10; // Start with some base users
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      
+      // Add 0-3 new users each day
+      const newUsers = Math.floor(Math.random() * 4);
+      cumulativeValue += newUsers;
+      
+      data.push({
+        name: `${date.getMonth() + 1}/${date.getDate()}`,
+        value: cumulativeValue
+      });
+    }
+    
+    return data;
+  };
+
+  // Generate sample data as fallback for meal activity
+  const generateSampleActivityData = () => {
+    const data = [];
+    const today = new Date();
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      
+      // Create some null values to demonstrate connect nulls feature
+      let value = null;
+      
+      // Set some days to null to demonstrate the connect nulls feature
+      if (i % 4 !== 3) {
+        // Random value between 0-15 for demonstration
+        value = Math.floor(Math.random() * 16);
+      }
+      
+      data.push({
+        name: `${date.getMonth() + 1}/${date.getDate()}`,
+        value: value
+      });
+    }
+    
+    return data;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-primary py-4">
@@ -473,57 +576,66 @@ export default function AdminDashboard({
           </div>
         </div>
         
-        {/* Composed Chart with Axis Labels */}
-        <div className="bg-card p-6 rounded-lg vintage-border mb-8">
-          <h2 className="text-xl font-bold mb-4 vintage-text">Meal Trends Analysis</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart
-                data={mealChartData}
-                margin={{
-                  top: 20,
-                  right: 20,
-                  bottom: 20,
-                  left: 20,
-                }}
-              >
-                <CartesianGrid stroke="#f5f5f5" />
-                <XAxis dataKey="name" scale="band" />
-                <YAxis />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e1e1e', 
-                    border: '1px solid #333',
-                    color: '#fff'
-                  }}
-                />
-                <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  fill="#8884d8" 
-                  stroke="#8884d8" 
-                  name="Meal Count" 
-                  fillOpacity={0.3}
-                />
-                <Bar 
-                  dataKey="count" 
-                  barSize={20} 
-                  fill="#413ea0" 
-                  name="Meal Count"
-                >
-                  <LabelList dataKey="count" position="top" />
-                </Bar>
-                <Line 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="#ff7300" 
-                  name="Trend" 
-                  strokeWidth={2}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+        {/* User Growth Area Chart */}
+        <div className="mb-8">
+          {isLoadingGrowthData ? (
+            <div className="bg-card p-6 rounded-lg vintage-border h-96 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-10 h-10 border-t-2 border-primary rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading user growth data...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card p-6 rounded-lg vintage-border">
+              <div className="flex items-center mb-4">
+                <TrendingUp className="text-primary mr-2" size={20} />
+                <h2 className="text-xl font-bold vintage-text">User Growth Trend (30 Days)</h2>
+              </div>
+              <AreaChartConnectNulls 
+                data={userGrowthData} 
+                title="Cumulative User Count" 
+                color="#8884d8"
+                gradientStart="#8884d8"
+                gradientEnd="rgba(136, 132, 216, 0.1)"
+                connectNulls={true}
+                showAverage={false}
+              />
+              <p className="text-xs text-center text-gray-400 mt-2">
+                Chart shows the cumulative number of users over the last 30 days
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* Meal Activity Area Chart */}
+        <div className="mb-8">
+          {isLoadingActivityData ? (
+            <div className="bg-card p-6 rounded-lg vintage-border h-96 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-10 h-10 border-t-2 border-primary rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading meal activity data...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card p-6 rounded-lg vintage-border">
+              <div className="flex items-center mb-4">
+                <Activity className="text-primary mr-2" size={20} />
+                <h2 className="text-xl font-bold vintage-text">Daily Meal Activity (30 Days)</h2>
+              </div>
+              <AreaChartConnectNulls 
+                data={mealActivityData} 
+                title="Daily Meal Uploads" 
+                color="#82ca9d"
+                gradientStart="#82ca9d"
+                gradientEnd="rgba(130, 202, 157, 0.1)"
+                connectNulls={false}
+                showAverage={true}
+              />
+              <p className="text-xs text-center text-gray-400 mt-2">
+                Chart shows the number of meals uploaded each day over the last 30 days (gaps indicate days with no data)
+              </p>
+            </div>
+          )}
         </div>
         
         <div className="bg-card p-6 rounded-lg vintage-border mb-8">

@@ -42,7 +42,7 @@ export default function Clock({ onStatusChange }: ClockProps = {}) {
     // Updated meal time windows:
     // Breakfast: 6:00 AM - 9:00 AM
     // Lunch: 12:00 PM - 2:50 PM
-    // Dinner: 4:00 PM - 6:00 PM
+    // Dinner: 4:00 PM - 8:00 PM
     const hours = thaiTime.getHours();
     const minutes = thaiTime.getMinutes();
     

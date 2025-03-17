@@ -582,14 +582,9 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           <h2 className="text-2xl font-bold mb-8 vintage-text text-center">Today's Meals</h2>
         </MotionDiv>
         
-        <MotionDiv
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
-        >
+        <MotionDiv variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Breakfast */}
-          <MotionDiv variants={scaleIn} className="gradient-border overflow-hidden">
+          <MotionDiv variants={scaleIn} className="bg-card rounded-lg overflow-hidden vintage-border">
             <h3 className="text-xl font-bold p-4 vintage-text bg-card">Breakfast</h3>
             {todaysMeals.BREAKFAST ? (
               <div className="relative h-64 w-full overflow-hidden">
@@ -638,7 +633,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           </MotionDiv>
           
           {/* Lunch */}
-          <MotionDiv variants={scaleIn} className="gradient-border overflow-hidden">
+          <MotionDiv variants={scaleIn} className="bg-card rounded-lg overflow-hidden vintage-border">
             <h3 className="text-xl font-bold p-4 vintage-text bg-card">Lunch</h3>
             {todaysMeals.LUNCH ? (
               <div className="relative h-64 w-full overflow-hidden">
@@ -687,7 +682,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           </MotionDiv>
           
           {/* Dinner */}
-          <MotionDiv variants={scaleIn} className="gradient-border overflow-hidden">
+          <MotionDiv variants={scaleIn} className="bg-card rounded-lg overflow-hidden vintage-border">
             <h3 className="text-xl font-bold p-4 vintage-text bg-card">Dinner</h3>
             {todaysMeals.DINNER ? (
               <div className="relative h-64 w-full overflow-hidden">
@@ -735,6 +730,22 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
             )}
           </MotionDiv>
         </MotionDiv>
+
+        {/* Analytics Link */}
+        <div className="text-center mb-8">
+          <Link href="/analytics">
+            <MotionButton 
+              className="vintage-button bg-primary text-sm py-2 px-4"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              View Detailed Analytics
+            </MotionButton>
+          </Link>
+          <p className="text-xs text-gray-400 mt-2">
+            Check out detailed charts and analytics about your meal tracking habits
+          </p>
+        </div>
 
         {/* Food Verification Modal */}
         <AnimatePresence>

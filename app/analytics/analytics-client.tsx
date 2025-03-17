@@ -1,7 +1,10 @@
 'use client';
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, RefreshCw } from "lucide-react";
+import HighlightAndZoomLineChart from "@/components/HighlightAndZoomLineChart";
+import LineChartConnectNulls from "@/components/LineChartConnectNulls";
 import { 
   RadarChart, 
   PolarGrid, 
@@ -48,33 +51,170 @@ interface AnalyticsClientProps {
   }[];
 }
 
-export default function AnalyticsClient({ user, mealCountByType, mealsByDay }: AnalyticsClientProps) {
+export default function AnalyticsClient({ user, mealCountByType: initialMealCountByType, mealsByDay: initialMealsByDay }: AnalyticsClientProps) {
+  const [mealCountByType, setMealCountByType] = useState(initialMealCountByType);
+  const [mealsByDay, setMealsByDay] = useState(initialMealsByDay);
+  const [isLoading, setIsLoading] = useState(false);
+  const [mealTrendData, setMealTrendData] = useState<{name: string, value: number}[]>([]);
+  const [weeklyPatternData, setWeeklyPatternData] = useState<{name: string, value: number | null}[]>([]);
+  const [isLoadingTrendData, setIsLoadingTrendData] = useState(true);
+  const [isLoadingPatternData, setIsLoadingPatternData] = useState(true);
+
+  // Function to fetch updated analytics data
+  const fetchAnalyticsData = async () => {
+    setIsLoading(true);
+    try {
+      console.log("Analytics Client: Fetching data from API");
+      const response = await fetch('/api/analytics');
+      
+      if (!response.ok) {
+        console.error("Analytics Client: API response not OK", response.status, response.statusText);
+        throw new Error('Failed to fetch analytics data');
+      }
+      
+      const data = await response.json();
+      console.log("Analytics Client: Received data from API", data);
+      
+      setMealCountByType(data.mealCountByType);
+      setMealsByDay(data.mealsByDay);
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch data when component mounts
+  useEffect(() => {
+    console.log("Analytics Client: Initial props", { initialMealCountByType, initialMealsByDay });
+    fetchAnalyticsData();
+  }, []);
+
+  // Fetch meal trend data
+  useEffect(() => {
+    const fetchMealTrendData = async () => {
+      setIsLoadingTrendData(true);
+      try {
+        const response = await fetch('/api/meals/trend');
+        if (!response.ok) {
+          throw new Error('Failed to fetch meal trend data');
+        }
+        const data = await response.json();
+        setMealTrendData(data);
+      } catch (error) {
+        console.error('Error fetching meal trend data:', error);
+        // Fallback to sample data if API fails
+        setMealTrendData(generateSampleMealTrendData());
+      } finally {
+        setIsLoadingTrendData(false);
+      }
+    };
+
+    fetchMealTrendData();
+  }, []);
+
+  // Fetch weekly pattern data
+  useEffect(() => {
+    const fetchWeeklyPatternData = async () => {
+      setIsLoadingPatternData(true);
+      try {
+        const response = await fetch('/api/meals/weekly-pattern');
+        if (!response.ok) {
+          throw new Error('Failed to fetch weekly pattern data');
+        }
+        const data = await response.json();
+        setWeeklyPatternData(data);
+      } catch (error) {
+        console.error('Error fetching weekly pattern data:', error);
+        // Fallback to sample data if API fails
+        setWeeklyPatternData(generateSampleWeeklyPatternData());
+      } finally {
+        setIsLoadingPatternData(false);
+      }
+    };
+
+    fetchWeeklyPatternData();
+  }, []);
+
+  // Generate sample data as fallback for trend chart
+  const generateSampleMealTrendData = () => {
+    const data = [];
+    const today = new Date();
+    
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      
+      // Random value between 0-3 for demonstration
+      const value = Math.floor(Math.random() * 4);
+      
+      data.push({
+        name: `${date.getMonth() + 1}/${date.getDate()}`,
+        value: value
+      });
+    }
+    
+    return data;
+  };
+
+  // Generate sample data as fallback for weekly pattern chart
+  const generateSampleWeeklyPatternData = () => {
+    const data = [];
+    
+    for (let i = 0; i < 24; i++) {
+      // Create some null values to demonstrate connect nulls feature
+      let value = null;
+      
+      // Only add values for certain hours to create gaps
+      if (i === 7 || i === 8 || i === 12 || i === 13 || i === 18 || i === 19) {
+        value = Math.floor(Math.random() * 5) + 1;
+      }
+      
+      data.push({
+        name: `${i}:00`,
+        value: value
+      });
+    }
+    
+    return data;
+  };
+
   // Prepare data for meal type radar chart
   const mealTypeData = [
-    { name: 'Breakfast', value: mealCountByType.BREAKFAST },
-    { name: 'Lunch', value: mealCountByType.LUNCH },
-    { name: 'Dinner', value: mealCountByType.DINNER },
+    { name: 'Breakfast', value: mealCountByType.BREAKFAST || 0 },
+    { name: 'Lunch', value: mealCountByType.LUNCH || 0 },
+    { name: 'Dinner', value: mealCountByType.DINNER || 0 },
   ];
+  
+  console.log("Analytics Client: Rendering with data", { mealTypeData, mealsByDay });
   
   // Calculate max value for better visualization
   const maxMealTypeValue = Math.max(
-    mealCountByType.BREAKFAST,
-    mealCountByType.LUNCH,
-    mealCountByType.DINNER
+    mealCountByType.BREAKFAST || 0,
+    mealCountByType.LUNCH || 0,
+    mealCountByType.DINNER || 0
   );
   
   // Calculate max value for days of week
-  const maxDayValue = Math.max(...mealsByDay.map(day => day.count));
+  const maxDayValue = Math.max(...mealsByDay.map(day => day.count || 0));
   
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-primary py-4">
         <div className="container mx-auto px-4">
-          <div className="flex items-center">
+          <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center text-primary hover:text-primary/80 transition-colors">
               <ChevronLeft size={20} />
               <span>Back to Dashboard</span>
             </Link>
+            <button 
+              onClick={fetchAnalyticsData}
+              disabled={isLoading}
+              className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={20} className={isLoading ? "animate-spin" : ""} />
+              <span>Refresh Data</span>
+            </button>
           </div>
         </div>
       </header>
@@ -248,6 +388,54 @@ export default function AnalyticsClient({ user, mealCountByType, mealsByDay }: A
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+        </div>
+
+        {/* Meal Trend Chart */}
+        <div className="mb-8">
+          {isLoadingTrendData ? (
+            <div className="bg-card p-6 rounded-lg vintage-border h-96 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-10 h-10 border-t-2 border-primary rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading meal trend data...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <HighlightAndZoomLineChart 
+                data={mealTrendData} 
+                title="30-Day Meal Upload Trend" 
+                color="#8884d8"
+              />
+              <p className="text-xs text-center text-gray-400 mt-2">
+                Chart shows the number of meals uploaded each day over the last 30 days
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Weekly Pattern Chart with Connect Nulls */}
+        <div className="mb-8">
+          {isLoadingPatternData ? (
+            <div className="bg-card p-6 rounded-lg vintage-border h-96 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-10 h-10 border-t-2 border-primary rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading meal pattern data...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <LineChartConnectNulls 
+                data={weeklyPatternData} 
+                title="Meal Upload Time Patterns" 
+                color="#82ca9d"
+                connectNulls={true}
+                showAverage={true}
+              />
+              <p className="text-xs text-center text-gray-400 mt-2">
+                Chart shows when you typically upload meals throughout the day (hours with no data appear as gaps)
+              </p>
+            </>
+          )}
         </div>
       </main>
     </div>

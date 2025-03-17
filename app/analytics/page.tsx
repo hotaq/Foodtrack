@@ -8,8 +8,11 @@ export default async function AnalyticsPage() {
   const session = await getServerSession(authOptions);
   
   if (!session || !session.user) {
+    console.log("Analytics Page: No session or user, redirecting to login");
     redirect("/login");
   }
+  
+  console.log(`Analytics Page: Fetching data for user ${session.user.id}`);
   
   // Get user data
   const user = await db.user.findUnique({
@@ -22,8 +25,11 @@ export default async function AnalyticsPage() {
   });
   
   if (!user) {
+    console.log("Analytics Page: User not found, redirecting to login");
     redirect("/login");
   }
+  
+  console.log(`Analytics Page: User found - ${user.email}, role: ${user.role}`);
   
   // Get meal counts by type for the user
   const mealsByType = await db.meal.groupBy({
@@ -36,6 +42,8 @@ export default async function AnalyticsPage() {
     },
   });
   
+  console.log("Analytics Page: Meal counts by type:", mealsByType);
+  
   // Get meal counts by day of week
   const meals = await db.meal.findMany({
     where: {
@@ -47,6 +55,8 @@ export default async function AnalyticsPage() {
       date: true,
     },
   });
+  
+  console.log(`Analytics Page: Found ${meals.length} meals for user`);
   
   // Process meals by day of week
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -67,9 +77,15 @@ export default async function AnalyticsPage() {
     DINNER: 0,
   };
   
-  mealsByType.forEach(item => {
-    mealCountByType[item.type] = item._count.id;
-  });
+  if (mealsByType && mealsByType.length > 0) {
+    mealsByType.forEach(item => {
+      if (item && item.type && item._count && item._count.id) {
+        mealCountByType[item.type] = item._count.id;
+      }
+    });
+  }
+  
+  console.log("Analytics Page: Processed data:", { mealCountByType, mealsByDay });
   
   return (
     <AnalyticsClient 
