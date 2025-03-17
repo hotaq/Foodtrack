@@ -1,4 +1,5 @@
 import { initEdgeStore } from '@edgestore/server';
+import { createEdgeStoreNextHandler } from '@edgestore/server/adapters/next/app';
 
 // Make sure environment variables are available
 const accessKey = process.env.EDGE_STORE_ACCESS_KEY;
