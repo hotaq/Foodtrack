@@ -21,7 +21,8 @@ import {
   Trash2,
   CheckCircle,
   TrendingUp,
-  Activity
+  Activity,
+  Clock
 } from 'lucide-react';
 import { 
   BarChart as RechartsBarChart, 
@@ -112,6 +113,18 @@ export default function AdminDashboard({
   const [mealActivityData, setMealActivityData] = useState<{name: string, value: number | null}[]>([]);
   const [isLoadingGrowthData, setIsLoadingGrowthData] = useState(true);
   const [isLoadingActivityData, setIsLoadingActivityData] = useState(true);
+
+  // Meal Time Settings Management
+  const [showMealTimeSettingsModal, setShowMealTimeSettingsModal] = useState(false);
+  const [mealTimeSettings, setMealTimeSettings] = useState({
+    breakfastStart: 6,
+    breakfastEnd: 9,
+    lunchStart: 12,
+    lunchEnd: 15,
+    dinnerStart: 16,
+    dinnerEnd: 20
+  });
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
 
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
@@ -249,89 +262,28 @@ export default function AdminDashboard({
       }
 
       const data = await response.json();
-      
-      // Update the user in the local state
-      setUsers(users.map(user => {
-        if (user.id === selectedUser.id) {
-          return {
-            ...user,
-            streak: {
-              currentStreak,
-              longestStreak,
-            }
-          };
-        }
-        return user;
-      }));
+      toast.success("User streak updated successfully");
+
+      // Update the user in the UI
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === selectedUser.id
+            ? {
+                ...user,
+                streak: {
+                  ...user.streak,
+                  currentStreak,
+                  longestStreak,
+                },
+              }
+            : user
+        )
+      );
 
       setShowStreakModal(false);
-      toast.success("Streak updated successfully");
     } catch (error) {
       console.error("Error updating streak:", error);
       toast.error("Failed to update streak");
-    }
-  };
-
-  // Function to handle user unban
-  const handleUnbanUser = async () => {
-    if (!selectedUser) return;
-    
-    try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/unban`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      
-      if (response.ok) {
-        toast.success('User unbanned successfully');
-        setShowUnbanModal(false);
-        
-        // Update the user's status in the UI
-        setUsers(prevUsers => 
-          prevUsers.map(user => 
-            user.id === selectedUser.id 
-              ? { ...user, status: 'ACTIVE', isBanned: false } 
-              : user
-          )
-        );
-      } else {
-        toast.error('Failed to unban user');
-      }
-    } catch (error) {
-      console.error('Error unbanning user:', error);
-      toast.error('An error occurred while unbanning the user');
-    }
-  };
-
-  // Function to handle account deletion
-  const handleDeleteAccount = async () => {
-    if (!selectedUser) return;
-    
-    if (deleteConfirmation !== selectedUser.email) {
-      toast.error("Email confirmation doesn't match");
-      return;
-    }
-    
-    try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        toast.success('Account deleted successfully');
-        setShowDeleteModal(false);
-        setDeleteConfirmation('');
-        
-        // Remove the user from the UI
-        setUsers(prevUsers => prevUsers.filter(user => user.id !== selectedUser.id));
-      } else {
-        toast.error('Failed to delete account');
-      }
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      toast.error('An error occurred while deleting the account');
     }
   };
 
@@ -431,6 +383,171 @@ export default function AdminDashboard({
     return data;
   };
 
+  // Fetch current meal time settings when modal is opened
+  useEffect(() => {
+    if (showMealTimeSettingsModal) {
+      fetchMealTimeSettings();
+    }
+  }, [showMealTimeSettingsModal]);
+
+  const fetchMealTimeSettings = async () => {
+    setIsLoadingSettings(true);
+    try {
+      const response = await fetch('/api/admin/meal-time-settings');
+      if (response.ok) {
+        const data = await response.json();
+        setMealTimeSettings({
+          breakfastStart: data.breakfastStart,
+          breakfastEnd: data.breakfastEnd,
+          lunchStart: data.lunchStart,
+          lunchEnd: data.lunchEnd,
+          dinnerStart: data.dinnerStart,
+          dinnerEnd: data.dinnerEnd
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching meal time settings:', error);
+      toast.error('Failed to load meal time settings');
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  const handleMealTimeSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setMealTimeSettings(prev => ({
+      ...prev,
+      [name]: parseInt(value, 10)
+    }));
+  };
+
+  const handleMealTimeSettingsSubmit = async () => {
+    try {
+      const response = await fetch('/api/admin/meal-time-settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(mealTimeSettings)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update meal time settings');
+      }
+
+      toast.success(
+        <div>
+          <p className="font-bold">Meal time settings updated! ⏰</p>
+          <p className="text-sm">Users will be notified of these changes.</p>
+          <p className="text-sm">New settings:</p>
+          <ul className="text-xs list-disc pl-4 mt-1">
+            <li>Breakfast: {mealTimeSettings.breakfastStart}:00 - {mealTimeSettings.breakfastEnd}:00</li>
+            <li>Lunch: {mealTimeSettings.lunchStart}:00 - {mealTimeSettings.lunchEnd}:00</li>
+            <li>Dinner: {mealTimeSettings.dinnerStart}:00 - {mealTimeSettings.dinnerEnd}:00</li>
+          </ul>
+        </div>,
+        { duration: 5000 }
+      );
+      
+      setShowMealTimeSettingsModal(false);
+    } catch (error) {
+      console.error('Error updating meal time settings:', error);
+      toast.error('Failed to update meal time settings');
+    }
+  };
+
+  const handleResetExpiredStreaks = async () => {
+    try {
+      const response = await fetch('/api/updateStreaks');
+      
+      if (!response.ok) {
+        throw new Error('Failed to update streaks');
+      }
+      
+      const data = await response.json();
+      toast.success(
+        <div>
+          <p className="font-bold">Streaks updated! 🔄</p>
+          <p className="text-sm">{data.resetsPerformed} streak(s) were reset to 0.</p>
+          <p className="text-sm">Users who haven't uploaded meals in over 24 hours had their streaks reset.</p>
+        </div>,
+        { duration: 5000 }
+      );
+      
+      // Reload the page to show updated data
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error resetting streaks:', error);
+      toast.error('Failed to reset expired streaks');
+    }
+  };
+
+  // Function to handle user unban
+  const handleUnbanUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/unban`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (response.ok) {
+        toast.success('User unbanned successfully');
+        setShowUnbanModal(false);
+        
+        // Update the user's status in the UI
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === selectedUser.id 
+              ? { ...user, status: 'ACTIVE', isBanned: false } 
+              : user
+          )
+        );
+      } else {
+        toast.error('Failed to unban user');
+      }
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      toast.error('An error occurred while unbanning the user');
+    }
+  };
+
+  // Function to handle account deletion
+  const handleDeleteAccount = async () => {
+    if (!selectedUser) return;
+    
+    if (deleteConfirmation !== selectedUser.email) {
+      toast.error("Email confirmation doesn't match");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        toast.success('Account deleted successfully');
+        setShowDeleteModal(false);
+        setDeleteConfirmation('');
+        
+        // Remove the user from the UI
+        setUsers(prevUsers => prevUsers.filter(user => user.id !== selectedUser.id));
+      } else {
+        toast.error('Failed to delete account');
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('An error occurred while deleting the account');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-primary py-4">
@@ -518,6 +635,18 @@ export default function AdminDashboard({
               <span className="font-bold">{dinnerCount}</span>
             </div>
           </div>
+        </div>
+        
+        <div className="bg-card p-6 rounded-lg vintage-border">
+          <h2 className="text-xl font-bold mb-2 vintage-text">Manage Streaks</h2>
+          <button
+            onClick={handleResetExpiredStreaks}
+            className="w-full mt-2 vintage-button bg-secondary text-sm py-2 px-4 flex items-center justify-center"
+          >
+            <Activity className="w-4 h-4 mr-2" />
+            Reset Expired Streaks
+          </button>
+          <p className="text-xs text-gray-400 mt-2">Resets streaks for inactive users</p>
         </div>
         
         <div className="bg-card p-6 rounded-lg vintage-border mb-8">
@@ -890,6 +1019,287 @@ export default function AdminDashboard({
             </table>
           </div>
         </div>
+
+        {/* Add Meal Time Settings Section */}
+        <section className="bg-card p-6 rounded-lg shadow-md mb-6 vintage-border">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold vintage-text">Meal Time Settings</h2>
+            <button
+              onClick={() => setShowMealTimeSettingsModal(true)}
+              className="vintage-button bg-secondary text-sm px-4 py-2 flex items-center"
+            >
+              <Clock className="w-4 h-4 mr-2" />
+              Edit Meal Times
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-card p-4 rounded-lg border border-primary/30">
+              <h3 className="text-lg font-semibold mb-2 vintage-text">Breakfast</h3>
+              <div className="text-sm">
+                <div className="flex justify-between mb-1">
+                  <span>Start Time:</span>
+                  <span className="text-primary">{mealTimeSettings.breakfastStart}:00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>End Time:</span>
+                  <span className="text-primary">{mealTimeSettings.breakfastEnd}:00</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card p-4 rounded-lg border border-primary/30">
+              <h3 className="text-lg font-semibold mb-2 vintage-text">Lunch</h3>
+              <div className="text-sm">
+                <div className="flex justify-between mb-1">
+                  <span>Start Time:</span>
+                  <span className="text-primary">{mealTimeSettings.lunchStart}:00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>End Time:</span>
+                  <span className="text-primary">{mealTimeSettings.lunchEnd}:00</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card p-4 rounded-lg border border-primary/30">
+              <h3 className="text-lg font-semibold mb-2 vintage-text">Dinner</h3>
+              <div className="text-sm">
+                <div className="flex justify-between mb-1">
+                  <span>Start Time:</span>
+                  <span className="text-primary">{mealTimeSettings.dinnerStart}:00</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>End Time:</span>
+                  <span className="text-primary">{mealTimeSettings.dinnerEnd}:00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* User Management Section */}
+        <section className="bg-card p-6 rounded-lg shadow-md mb-6 vintage-border">
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold vintage-text">All Users</h2>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-primary/20">
+                    <th 
+                      className="text-left py-2 px-4 cursor-pointer"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center">
+                        <span>Name</span>
+                        {sortField === 'name' && (
+                          sortDirection === 'asc' ? 
+                            <ChevronUp size={16} className="ml-1" /> : 
+                            <ChevronDown size={16} className="ml-1" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="text-left py-2 px-4">Email</th>
+                    <th className="text-left py-2 px-4">Role</th>
+                    <th 
+                      className="text-right py-2 px-4 cursor-pointer"
+                      onClick={() => handleSort('createdAt')}
+                    >
+                      <div className="flex items-center justify-end">
+                        <span>Joined</span>
+                        {sortField === 'createdAt' && (
+                          sortDirection === 'asc' ? 
+                            <ChevronUp size={16} className="ml-1" /> : 
+                            <ChevronDown size={16} className="ml-1" />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      className="text-right py-2 px-4 cursor-pointer"
+                      onClick={() => handleSort('streak')}
+                    >
+                      <div className="flex items-center justify-end">
+                        <span>Streak</span>
+                        {sortField === 'streak' && (
+                          sortDirection === 'asc' ? 
+                            <ChevronUp size={16} className="ml-1" /> : 
+                            <ChevronDown size={16} className="ml-1" />
+                        )}
+                      </div>
+                    </th>
+                    <th className="text-right py-2 px-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedUsers.map((user) => (
+                    <React.Fragment key={user.id}>
+                      <tr 
+                        className="border-b border-primary/10 hover:bg-primary/5"
+                      >
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => toggleUserExpand(user.id)}>
+                          {user.name || 'Anonymous'}
+                        </td>
+                        <td className="py-2 px-4">{user.email}</td>
+                        <td className="py-2 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            user.role === 'ADMIN' ? 'bg-primary/20 text-primary' : 'bg-gray-200/10 text-gray-300'
+                          }`}>
+                            {user.role}
+                          </span>
+                          {(user.status === 'BANNED' || user.isBanned) && (
+                            <span className="ml-2 px-2 py-1 rounded-full text-xs bg-red-500/20 text-red-500">
+                              BANNED
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 text-right">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-2 px-4 text-right">
+                          {user.streak?.currentStreak || 0}
+                        </td>
+                        <td className="py-2 px-4 text-right">
+                          <div className="flex justify-end space-x-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUser(user);
+                                setShowPasswordModal(true);
+                              }}
+                              className="p-1 hover:bg-primary/10 rounded"
+                              title="Change Password"
+                            >
+                              <Key size={16} className="text-primary" />
+                            </button>
+                            
+                            {(user.status === 'BANNED' || user.isBanned) ? (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedUser(user);
+                                  setShowUnbanModal(true);
+                                }}
+                                className="p-1 hover:bg-green-500/10 rounded"
+                                title="Unban User"
+                                disabled={user.role === 'ADMIN'}
+                              >
+                                <CheckCircle size={16} className={user.role === 'ADMIN' ? 'text-gray-500' : 'text-green-500'} />
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedUser(user);
+                                  setShowBanModal(true);
+                                }}
+                                className="p-1 hover:bg-red-500/10 rounded"
+                                title="Ban User"
+                                disabled={user.role === 'ADMIN'}
+                              >
+                                <Ban size={16} className={user.role === 'ADMIN' ? 'text-gray-500' : 'text-red-500'} />
+                              </button>
+                            )}
+                            
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUser(user);
+                                setCurrentStreak(user.streak?.currentStreak || 0);
+                                setLongestStreak(user.streak?.longestStreak || 0);
+                                setShowStreakModal(true);
+                              }}
+                              className="p-1 hover:bg-amber-500/10 rounded"
+                              title="Manage Streak"
+                            >
+                              <Award size={16} className="text-amber-500" />
+                            </button>
+                            
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUser(user);
+                                setShowDeleteModal(true);
+                              }}
+                              className="p-1 hover:bg-red-500/10 rounded"
+                              title="Delete Account"
+                              disabled={user.role === 'ADMIN'}
+                            >
+                              <Trash2 size={16} className={user.role === 'ADMIN' ? 'text-gray-500' : 'text-red-500'} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedUser === user.id && (
+                        <tr>
+                          <td colSpan={6} className="py-4 px-6 bg-background/50">
+                            <div className="text-sm">
+                              <h4 className="font-bold mb-2">Recent Meals</h4>
+                              {user.meals.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {user.meals.slice(0, 3).map((meal) => (
+                                    <div key={meal.id} className="bg-card p-2 rounded">
+                                      <div className="relative h-24 w-full mb-2">
+                                        <Image
+                                          src={meal.imageUrl}
+                                          alt={meal.type}
+                                          fill
+                                          className="object-cover rounded"
+                                        />
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span>{meal.type}</span>
+                                        <span>{new Date(meal.date).toLocaleDateString()}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-gray-300">No meals submitted yet</p>
+                              )}
+                              
+                              <div className="mt-4 grid grid-cols-2 gap-4">
+                                <div>
+                                  <h4 className="font-bold mb-1">Streak Info</h4>
+                                  <p className="text-xs">Current: {user.streak?.currentStreak || 0}</p>
+                                  <p className="text-xs">Longest: {user.streak?.longestStreak || 0}</p>
+                                </div>
+                                <div>
+                                  <h4 className="font-bold mb-1">Account Info</h4>
+                                  <p className="text-xs">ID: {user.id}</p>
+                                  <p className="text-xs">Created: {new Date(user.createdAt).toLocaleString()}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                  {sortedUsers.length === 0 && (
+                    <tr key="no-users-found">
+                      <td colSpan={6} className="py-4 text-center text-gray-300">
+                        No users found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Password Change Modal */}
@@ -1086,6 +1496,136 @@ export default function AdminDashboard({
                 Delete Account
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meal Time Settings Modal */}
+      {showMealTimeSettingsModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/70">
+          <div className="bg-card p-6 rounded-lg max-w-lg w-full">
+            <h3 className="text-xl font-bold mb-4 vintage-text">Edit Meal Time Settings</h3>
+            
+            {isLoadingSettings ? (
+              <div className="text-center py-4">
+                <div className="w-8 h-8 border-t-2 border-primary rounded-full animate-spin mx-auto"></div>
+                <p className="mt-2">Loading settings...</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <h4 className="font-semibold mb-3 vintage-text">Breakfast</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm mb-1">Start Time (hour)</label>
+                        <input
+                          type="number"
+                          name="breakfastStart"
+                          min="0"
+                          max="23"
+                          value={mealTimeSettings.breakfastStart}
+                          onChange={handleMealTimeSettingsChange}
+                          className="w-full p-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm mb-1">End Time (hour)</label>
+                        <input
+                          type="number"
+                          name="breakfastEnd"
+                          min="0"
+                          max="23"
+                          value={mealTimeSettings.breakfastEnd}
+                          onChange={handleMealTimeSettingsChange}
+                          className="w-full p-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-3 vintage-text">Lunch</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm mb-1">Start Time (hour)</label>
+                        <input
+                          type="number"
+                          name="lunchStart"
+                          min="0"
+                          max="23"
+                          value={mealTimeSettings.lunchStart}
+                          onChange={handleMealTimeSettingsChange}
+                          className="w-full p-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm mb-1">End Time (hour)</label>
+                        <input
+                          type="number"
+                          name="lunchEnd"
+                          min="0"
+                          max="23"
+                          value={mealTimeSettings.lunchEnd}
+                          onChange={handleMealTimeSettingsChange}
+                          className="w-full p-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <h4 className="font-semibold mb-3 vintage-text">Dinner</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm mb-1">Start Time (hour)</label>
+                        <input
+                          type="number"
+                          name="dinnerStart"
+                          min="0"
+                          max="23"
+                          value={mealTimeSettings.dinnerStart}
+                          onChange={handleMealTimeSettingsChange}
+                          className="w-full p-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm mb-1">End Time (hour)</label>
+                        <input
+                          type="number"
+                          name="dinnerEnd"
+                          min="0"
+                          max="23"
+                          value={mealTimeSettings.dinnerEnd}
+                          onChange={handleMealTimeSettingsChange}
+                          className="w-full p-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-sm mb-4 text-yellow-400">
+                  <p>⚠️ Note: Times are in 24-hour format (0-23) in Thailand timezone (UTC+7)</p>
+                  <p>⚠️ Start time must be less than end time for each meal</p>
+                </div>
+                
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowMealTimeSettingsModal(false)}
+                    className="mr-2 px-4 py-2 rounded-md border border-input text-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleMealTimeSettingsSubmit}
+                    className="px-4 py-2 bg-primary text-white rounded-md"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

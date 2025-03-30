@@ -128,3 +128,15 @@ enum MealType {
   LUNCH
   DINNER
 }
+
+model MealTimeSettings {
+  id             String   @id @default(cuid())
+  breakfastStart Int      @default(6)   // Hour in 24h format (6 = 6:00 AM)
+  breakfastEnd   Int      @default(9)   // Hour in 24h format (9 = 9:00 AM)
+  lunchStart     Int      @default(12)  // Hour in 24h format (12 = 12:00 PM)
+  lunchEnd       Int      @default(15)  // Hour in 24h format (15 = 3:00 PM)
+  dinnerStart    Int      @default(16)  // Hour in 24h format (16 = 4:00 PM)
+  dinnerEnd      Int      @default(20)  // Hour in 24h format (20 = 8:00 PM)
+  updatedAt      DateTime @updatedAt     // Automatically tracks when settings are updated
+  updatedBy      String?  // User ID who last updated the settings
+}

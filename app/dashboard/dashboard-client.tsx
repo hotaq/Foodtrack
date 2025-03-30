@@ -87,6 +87,8 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
   } | null>(null);
   const [edgeStoreError, setEdgeStoreError] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showMealTimeNotification, setShowMealTimeNotification] = useState(false);
+  const [mealTimeUpdateInfo, setMealTimeUpdateInfo] = useState<string>('');
   
   // Use optional chaining to handle potential undefined edgestore
   const edgeStoreClient = useEdgeStore();
@@ -94,6 +96,28 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
   // Update meal time status from the Clock component
   const handleMealTimeStatusChange = useCallback((status: MealTimeStatus) => {
     setMealTimeStatus(status);
+  }, []);
+
+  // Function to handle meal time update notification
+  const handleMealTimeUpdate = useCallback((timeAgo: string) => {
+    setShowMealTimeNotification(true);
+    setMealTimeUpdateInfo(timeAgo);
+    
+    // Hide the notification after 1 day (stored in localStorage)
+    const hideUntil = new Date();
+    hideUntil.setDate(hideUntil.getDate() + 1);
+    localStorage.setItem('mealTimeNotificationHideUntil', hideUntil.toISOString());
+  }, []);
+  
+  // Check if we should hide the notification based on localStorage
+  useEffect(() => {
+    const hideUntilStr = localStorage.getItem('mealTimeNotificationHideUntil');
+    if (hideUntilStr) {
+      const hideUntil = new Date(hideUntilStr);
+      if (new Date() < hideUntil) {
+        setShowMealTimeNotification(false);
+      }
+    }
   }, []);
 
   // Check if meal time is available
@@ -485,6 +509,25 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
         </div>
       </header>
 
+      {/* Meal Time Update Notification */}
+      {showMealTimeNotification && (
+        <div className="bg-primary/20 border border-primary p-3 rounded-md mb-6 flex justify-between items-center">
+          <div className="flex items-center">
+            <span className="text-primary mr-2">⏰</span>
+            <span>
+              Meal upload times have been updated {mealTimeUpdateInfo}. Check the clock below for new meal submission windows.
+            </span>
+          </div>
+          <button 
+            onClick={() => setShowMealTimeNotification(false)} 
+            className="text-primary hover:text-primary/70"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <main className="container mx-auto px-4 py-8">
         {successMessage && (
           <MotionDiv
@@ -570,7 +613,11 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           </MotionDiv>
           
           <MotionDiv variants={scaleIn}>
-            <Clock onStatusChange={handleMealTimeStatusChange} />
+            <Clock 
+              onStatusChange={handleMealTimeStatusChange} 
+              isAdmin={user.role === "ADMIN"}
+              onMealTimeUpdate={handleMealTimeUpdate}
+            />
           </MotionDiv>
         </MotionDiv>
 

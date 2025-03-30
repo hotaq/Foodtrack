@@ -11,5 +11,42 @@
     "DATABASE_URL": "postgresql://neondb_owner:npg_HL4UfuYA8lpJ@ep-super-breeze-a1ggrbbp-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
     "EDGE_STORE_ACCESS_KEY": "xS0zKPdhRDn6xcTc01ncdm1S4nGMWVzA",
     "EDGE_STORE_SECRET_KEY": "6jzepoThSlOqfmb9yGhydaq2Jot6roGYggZfkuMmhHDqhNki"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/updateStreaks",
+      "schedule": "0 0 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self' vitals.vercel-insights.com; script-src 'self' 'unsafe-eval' 'unsafe-inline' vitals.vercel-insights.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: edgestore.dev *.amazonaws.com *.edgestore.dev; font-src 'self' data:; connect-src 'self' vitals.vercel-insights.com *.edgestore.dev api.uploadthing.com *.vercel.app *.neon.tech;"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-DNS-Prefetch-Control",
+          "value": "on"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains; preload"
+        }
+      ]
+    }
+  ]
 } 
