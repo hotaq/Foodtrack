@@ -18,15 +18,21 @@ type Meal = {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session || !session.user.id) {
+    
+    if (!session || !session.user) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const { type, imageUrl, imageKey, isFood = true, foodName = null } = await req.json();
+    // Extract origin for API calls
+    const host = req.headers.get('host') || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const origin = `${protocol}://${host}`;
+    
+    const data = await req.json();
+    const { type, imageUrl, imageKey, isFood = true, foodName = null } = data;
 
     // Validate input
     if (!type || !imageUrl || !imageKey) {
@@ -79,6 +85,24 @@ export async function POST(req: Request) {
 
     // Update streak
     await updateStreak(session.user.id);
+
+    // Update quest progress for meal upload
+    try {
+      await fetch(`${origin}/api/quest-progress`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': req.headers.get('cookie') || '',
+        },
+        body: JSON.stringify({
+          questType: 'MEAL_UPLOAD',
+          amount: 1,
+        }),
+      });
+    } catch (questError) {
+      console.error("Failed to update quest progress:", questError);
+      // Don't block the meal upload if quest update fails
+    }
 
     return NextResponse.json(
       { 
@@ -173,5 +197,31 @@ async function updateStreak(userId: string) {
         lastMealDate: today,
       },
     });
+    
+    // If user completed all meals today, update streak achievement quests
+    try {
+      // Make a server-side request to update streak achievement quests
+      const host = process.env.VERCEL_URL || 'localhost:3000';
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      const url = `${protocol}://${host}/api/quest-progress`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId, // Include userId for server-side processing
+          questType: 'STREAK_ACHIEVEMENT',
+          amount: 1,
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error("Failed to update streak quest progress");
+      }
+    } catch (error) {
+      console.error("Error updating streak quest progress:", error);
+    }
   }
 } 

@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import DashboardClient from "@/app/dashboard/dashboard-client";
+import DashboardWrapper from "@/app/dashboard/dashboard-wrapper";
 import { authOptions } from "@/lib/auth";
 
 interface MealType {
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
   };
 
   return (
-    <DashboardClient 
+    <DashboardWrapper 
       user={user} 
       streak={user.streak} 
       todaysMeals={todaysMeals} 

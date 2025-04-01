@@ -37,6 +37,11 @@ model User {
   streak        Streak?
   accounts      Account[]
   sessions      Session[]
+  quests        UserQuest[]
+  items         UserItem[]
+  usedItems     ItemHistory[]
+  targetedItems ItemHistory[] @relation("ItemTarget")
+  score         Score?
 }
 
 model Account {
@@ -139,4 +144,168 @@ model MealTimeSettings {
   dinnerEnd      Int      @default(20)  // Hour in 24h format (20 = 8:00 PM)
   updatedAt      DateTime @updatedAt     // Automatically tracks when settings are updated
   updatedBy      String?  // User ID who last updated the settings
+}
+
+// Quest system models
+model Quest {
+  id           String      @id @default(cuid())
+  title        String
+  description  String
+  scoreReward  Int
+  imageUrl     String?
+  type         QuestType
+  requirement  Int         @default(1)    // Number of tasks to complete (e.g., meals, items used)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  createdBy    String      // Admin who created the quest
+  
+  userQuests   UserQuest[]
+}
+
+model UserQuest {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questId      String
+  quest        Quest       @relation(fields: [questId], references: [id], onDelete: Cascade)
+  progress     Int         @default(0)    // Current progress toward requirement
+  isCompleted  Boolean     @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([userId, questId])
+}
+
+model Item {
+  id           String      @id @default(cuid())
+  name         String
+  description  String
+  imageUrl     String?
+  price        Int         // Score cost to purchase
+  type         ItemType
+  effect       String      // JSON string describing the item's effects
+  duration     Int?        // Duration in seconds for time-based effects
+  cooldown     Int?        // Cooldown in seconds before item can be used again
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  createdBy    String      // Admin who created the item
+  
+  userItems    UserItem[]
+  itemHistory  ItemHistory[]
+}
+
+model UserItem {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity     Int         @default(1)
+  lastUsed     DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([userId, itemId])
+}
+
+model ItemHistory {
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  targetUserId String?     // If item was used on another user
+  targetUser   User?       @relation("ItemTarget", fields: [targetUserId], references: [id])
+  action       ItemAction
+  effectResult String?     // Result of the item effect (JSON)
+  createdAt    DateTime    @default(now())
+}
+
+model Score {
+  id           String      @id @default(cuid())
+  userId       String      @unique
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  points       Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Transaction history
+  transactions ScoreTransaction[]
+}
+
+model ScoreTransaction {
+  id           String      @id @default(cuid())
+  scoreId      String
+  score        Score       @relation(fields: [scoreId], references: [id], onDelete: Cascade)
+  amount       Int         // Positive for earned, negative for spent
+  reason       String      // Description of transaction
+  sourceType   TransactionType
+  sourceId     String?     // ID of the related entity (quest, item purchase, etc.)
+  createdAt    DateTime    @default(now())
+}
+
+// Enum types for the quest system
+enum QuestType {
+  MEAL_UPLOAD
+  STREAK_ACHIEVEMENT
+  ITEM_USE
+  ITEM_PURCHASE
+  SPECIAL_EVENT
+}
+
+enum ItemType {
+  STREAK_MODIFIER
+  SCORE_MODIFIER
+  MEAL_BONUS
+  SPECIAL
+  CONSUMABLE
+  EQUIPMENT
+}
+
+enum ItemAction {
+  PURCHASE
+  USE
+  GIFT
+  DISCARD
+}
+
+enum TransactionType {
+  QUEST_REWARD
+  ITEM_PURCHASE
+  ADMIN_ADJUSTMENT
+  ITEM_USE
+  ITEM_TARGET
+}
+
+// New tables for item use and purchase logging
+model ItemUseLog {
+  id           String      @id @default(cuid())
+  userId       String      
+  itemId       String      
+  targetUserId String?     // If item was used on another user
+  effect       String?     // Result of using the item
+  createdAt    DateTime    @default(now())
+}
+
+model ItemPurchaseLog {
+  id           String      @id @default(cuid())
+  userId       String      
+  itemId       String      
+  price        Int         // Price paid at time of purchase
+  createdAt    DateTime    @default(now())
+}
+
+// Active effects from items
+model ActiveEffect {
+  id             String    @id @default(cuid())
+  userId         String    
+  itemId         String    
+  type           String    // Type of effect (SCORE_MULTIPLIER, TIME_EXTENSION, STREAK_PROTECT, etc)
+  multiplier     Float?    // For score multiplier effects
+  timeExtension  Int?      // Minutes to extend meal submission windows
+  expiresAt      DateTime  // When the effect expires
+  createdAt      DateTime  @default(now())
 }

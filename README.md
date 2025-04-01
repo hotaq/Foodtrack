@@ -12,6 +12,41 @@ A modern web application for tracking meals with social features, authentication
 - Streaks for consistent meal tracking
 - Responsive design
 
+## Quest System and Marketplace 🏆🛒
+
+The application now includes a quest system that allows users to complete tasks and earn rewards.
+
+### Quest Management (Admin)
+
+Administrators can manage quests through the admin panel:
+
+1. **Create Quests**: Create custom quests with different types (meal upload, streak achievement, etc.)
+2. **Seed Quests**: Quickly populate with sample quests
+3. **Toggle Active Status**: Enable or disable quests as needed
+4. **Delete Quests**: Remove quests that are no longer needed
+
+To access the quest management:
+1. Log in as an admin user
+2. Navigate to the Admin Dashboard
+3. Click on "Quest Management"
+
+### Quest Types
+
+The system supports various quest types:
+- `MEAL_UPLOAD`: Uploading meals (breakfast, lunch, dinner)
+- `STREAK_ACHIEVEMENT`: Reaching certain streak milestones
+- `ITEM_USE`: Using items from the marketplace
+- `ITEM_PURCHASE`: Purchasing items from the marketplace
+- `SPECIAL_EVENT`: Special limited-time quests
+
+### User Quest Experience
+
+Users can:
+1. View available quests on the Quest board
+2. Accept quests to start tracking progress
+3. Complete quests to earn score points
+4. Use earned points to purchase items in the marketplace
+
 ## Tech Stack
 
 - Next.js 14 (App Router)

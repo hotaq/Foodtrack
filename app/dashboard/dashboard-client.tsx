@@ -6,6 +6,7 @@ import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useEdgeStore } from "@/lib/edgestore";
 import Clock, { MealTimeStatus } from "@/components/clock";
+import ActiveEffectsDisplay from "@/app/components/ActiveEffectsDisplay";
 import { 
   MotionDiv, 
   MotionButton, 
@@ -389,6 +390,24 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
                   Analytics
                 </MotionButton>
               </Link>
+              <Link href="/marketplace">
+                <MotionButton 
+                  className="vintage-button bg-primary text-sm py-2 px-4"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Marketplace 🛍️
+                </MotionButton>
+              </Link>
+              <Link href="/quests">
+                <MotionButton 
+                  className="vintage-button bg-primary text-sm py-2 px-4"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Quests 🏆
+                </MotionButton>
+              </Link>
               <Link href="/favorites">
                 <MotionButton 
                   className="vintage-button bg-primary text-sm py-2 px-4"
@@ -473,6 +492,24 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
                     whileTap={{ scale: 0.98 }}
                   >
                     Analytics
+                  </MotionButton>
+                </Link>
+                <Link href="/marketplace" className="w-full">
+                  <MotionButton 
+                    className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Marketplace 🛍️
+                  </MotionButton>
+                </Link>
+                <Link href="/quests" className="w-full">
+                  <MotionButton 
+                    className="vintage-button bg-primary text-sm py-2 px-4 w-full"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Quests 🏆
                   </MotionButton>
                 </Link>
                 <Link href="/favorites" className="w-full">
@@ -575,6 +612,12 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
               <div className="text-5xl font-bold text-primary">{streak?.longestStreak || 0}</div>
               <div className="text-xl ml-2 text-muted-foreground">days</div>
             </div>
+          </MotionDiv>
+          
+          {/* Active Effects Display */}
+          <MotionDiv variants={scaleIn} className="tech-card rounded-lg neon-border md:col-span-2">
+            <h2 className="text-xl font-bold mb-4 vintage-text">Active Effects</h2>
+            <ActiveEffectsDisplay userId={user.id} />
           </MotionDiv>
           
           <MotionDiv variants={scaleIn} className="tech-card rounded-lg neon-border md:col-span-2">
