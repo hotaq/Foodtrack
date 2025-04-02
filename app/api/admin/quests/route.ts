@@ -2,8 +2,46 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { randomUUID } from "crypto";
 
-// POST: Create a new quest (admin only)
+// GET: Get all quests
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    // Ensure user is authenticated and is an admin
+    if (!session || !session.user) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+    
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+    });
+    
+    if (!user || user.role !== "ADMIN") {
+      return NextResponse.json({ message: "Forbidden: Admin access required" }, { status: 403 });
+    }
+    
+    // Get all quests
+    const quests = await db.quest.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            userQuests: true,
+          },
+        },
+      },
+    });
+    
+    return NextResponse.json(quests);
+  } catch (error) {
+    console.error("Error fetching quests:", error);
+    return NextResponse.json({ message: "Failed to fetch quests" }, { status: 500 });
+  }
+}
+
+// POST: Create a new quest
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,7 +51,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
     
-    const user = await (db as any).user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: session.user.id },
     });
     
@@ -22,33 +60,67 @@ export async function POST(req: Request) {
     }
     
     // Parse request body
-    const { title, description, type, requirement, scoreReward, isActive } = await req.json();
+    const body = await req.json();
+    console.log("Create quest request body:", JSON.stringify(body, null, 2));
+    
+    const { title, description, scoreReward, type, requirement, isActive, startDate, endDate } = body;
     
     // Validate required fields
-    if (!title || !description || !type) {
+    if (!title || !description || !scoreReward || !type || requirement === undefined) {
       return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
     
-    // Create the quest
-    const quest = await (db as any).quest.create({
-      data: {
-        title,
-        description,
-        type,
-        requirement: Number(requirement) || 1,
-        scoreReward: Number(scoreReward) || 5,
-        isActive: Boolean(isActive),
-        createdBy: session.user.id,
-      },
+    // Create new quest
+    console.log("Creating quest with data:", {
+      title,
+      description,
+      scoreReward: Number(scoreReward),
+      type,
+      requirement: Number(requirement),
+      isActive: Boolean(isActive),
+      startDate,
+      endDate,
+      createdBy: session.user.id
     });
+    
+    // Use raw query to bypass Prisma client validation
+    const result = await db.$queryRaw`
+      INSERT INTO "Quest" (
+        "id", "title", "description", "scoreReward", "type", 
+        "requirement", "isActive", "startDate", "endDate", 
+        "createdBy", "createdAt", "updatedAt"
+      ) 
+      VALUES (
+        ${randomUUID()}, ${title}, ${description}, ${Number(scoreReward)}, ${type}::"QuestType", 
+        ${Number(requirement)}, ${Boolean(isActive)}, 
+        ${startDate ? startDate : null}::timestamp, 
+        ${endDate ? endDate : null}::timestamp, 
+        ${session.user.id}, NOW(), NOW()
+      )
+      RETURNING *
+    `;
+    
+    // Type assertion for the raw query result
+    const newQuest = Array.isArray(result) && result.length > 0 ? result[0] : null;
+    
+    if (!newQuest) {
+      throw new Error("Failed to create quest");
+    }
     
     return NextResponse.json({
       message: "Quest created successfully",
-      quest,
-    });
+      quest: newQuest,
+    }, { status: 201 });
   } catch (error) {
     console.error("Error creating quest:", error);
-    return NextResponse.json({ message: "Failed to create quest" }, { status: 500 });
+    const errorMessage = typeof error === 'object' && error !== null ? 
+      (error as Error).message || "Unknown error" : 
+      String(error);
+    
+    return NextResponse.json({ 
+      message: "Failed to create quest", 
+      error: errorMessage 
+    }, { status: 500 });
   }
 }
 
@@ -138,42 +210,5 @@ export async function DELETE(req: Request) {
   } catch (error) {
     console.error("Error deleting quest:", error);
     return NextResponse.json({ message: "Failed to delete quest" }, { status: 500 });
-  }
-}
-
-// GET: List all quests (admin only)
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    
-    // Ensure user is authenticated and is an admin
-    if (!session || !session.user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-    
-    const user = await (db as any).user.findUnique({
-      where: { id: session.user.id },
-    });
-    
-    if (!user || user.role !== "ADMIN") {
-      return NextResponse.json({ message: "Forbidden: Admin access required" }, { status: 403 });
-    }
-    
-    // Get all quests
-    const quests = await (db as any).quest.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: {
-          select: {
-            userQuests: true,
-          },
-        },
-      },
-    });
-    
-    return NextResponse.json({ quests });
-  } catch (error) {
-    console.error("Error fetching quests:", error);
-    return NextResponse.json({ message: "Failed to fetch quests" }, { status: 500 });
   }
 } 

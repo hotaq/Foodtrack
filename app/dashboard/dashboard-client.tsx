@@ -6,12 +6,11 @@ import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useEdgeStore } from "@/lib/edgestore";
 import Clock, { MealTimeStatus } from "@/components/clock";
-import ActiveEffectsDisplay from "@/app/components/ActiveEffectsDisplay";
 import { 
   MotionDiv, 
   MotionButton, 
-  fadeIn, 
-  slideUp, 
+  
+  
   staggerContainer, 
   scaleIn 
 } from "@/components/ui/motion";
@@ -25,6 +24,8 @@ import {
   ResponsiveContainer,
   Tooltip
 } from 'recharts';
+import { Shield, Trophy, Clock as ClockIcon } from "lucide-react";
+import "./dashboard.css";
 
 // Define types based on Prisma schema
 type MealType = "BREAKFAST" | "LUNCH" | "DINNER";
@@ -61,6 +62,12 @@ interface User {
   updatedAt: Date;
 }
 
+interface ActiveEffect {
+  id: string;
+  type: string;
+  expiresAt: string;
+}
+
 interface DashboardClientProps {
   user: User & { streak: Streak | null };
   streak: Streak | null;
@@ -90,6 +97,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMealTimeNotification, setShowMealTimeNotification] = useState(false);
   const [mealTimeUpdateInfo, setMealTimeUpdateInfo] = useState<string>('');
+  const [activeEffects, setActiveEffects] = useState<ActiveEffect[]>([]);
   
   // Use optional chaining to handle potential undefined edgestore
   const edgeStoreClient = useEdgeStore();
@@ -305,6 +313,27 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
       </div>
     );
   };
+
+  const fetchActiveEffects = useCallback(async () => {
+    try {
+      const response = await fetch('/api/effects/active');
+      if (response.ok) {
+        const data = await response.json();
+        setActiveEffects(data.activeEffects || []);
+      }
+    } catch (error) {
+      console.error('Error fetching active effects:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveEffects();
+    
+    // Refresh active effects every minute
+    const intervalId = setInterval(fetchActiveEffects, 60000);
+    
+    return () => clearInterval(intervalId);
+  }, [fetchActiveEffects]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -617,7 +646,40 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           {/* Active Effects Display */}
           <MotionDiv variants={scaleIn} className="tech-card rounded-lg neon-border md:col-span-2">
             <h2 className="text-xl font-bold mb-4 vintage-text">Active Effects</h2>
-            <ActiveEffectsDisplay userId={user.id} />
+            <div className="glass-card p-4 rounded-lg">
+              <h3 className="text-lg font-medium mb-3 flex items-center">
+                <Shield className="w-5 h-5 mr-2 text-primary" />
+                Active Effects
+              </h3>
+              
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                {activeEffects && activeEffects.length > 0 ? (
+                  activeEffects.map(effect => (
+                    <div key={effect.id} className="flex items-center justify-between p-2 rounded-md bg-primary/10">
+                      <div className="flex items-center">
+                        {effect.type === 'STREAK_PROTECT' && <Shield className="w-4 h-4 mr-2 text-primary" />}
+                        {effect.type === 'SCORE_MULTIPLIER' && <Trophy className="w-4 h-4 mr-2 text-amber-500" />}
+                        {effect.type === 'TIME_EXTENSION' && <ClockIcon className="w-4 h-4 mr-2 text-blue-500" />}
+                        {effect.type === 'ATTACK_BOOST' && <Shield className="w-4 h-4 mr-2 text-red-500" />}
+                        <span>{formatEffectType(effect.type)}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Expires in: {formatTimeRemaining(new Date(effect.expiresAt))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-2">
+                    No active effects. Use items from the marketplace to gain advantages!
+                  </div>
+                )}
+              </div>
+              {activeEffects && activeEffects.length > 0 && (
+                <div className="text-xs text-muted-foreground text-center mt-2">
+                  {activeEffects.length} active effect{activeEffects.length > 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
           </MotionDiv>
           
           <MotionDiv variants={scaleIn} className="tech-card rounded-lg neon-border md:col-span-2">
@@ -669,7 +731,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
         >
-          <h2 className="text-2xl font-bold mb-8 vintage-text text-center">Today's Meals</h2>
+          <h2 className="text-2xl font-bold mb-8 vintage-text text-center">Today&apos;s Meals</h2>
         </MotionDiv>
         
         <MotionDiv variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -889,7 +951,7 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
                     <div className="flex-1">
                       <h4 className="text-lg font-semibold text-primary mb-2">Verification Failed</h4>
                       <p className="text-muted-foreground mb-3">
-                        Our AI couldn't detect food in this image. Do you still want to upload it?
+                        Our AI couldn&apos;t detect food in this image. Do you still want to upload it?
                       </p>
                       
                       <div className="mb-3">
@@ -941,4 +1003,38 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
       {renderErrorMessage()}
     </div>
   );
+}
+
+function formatEffectType(type: string) {
+  switch (type) {
+    case 'STREAK_PROTECT':
+      return 'Shield of Protection';
+    case 'SCORE_MULTIPLIER':
+      return 'Score Multiplier';
+    case 'TIME_EXTENSION':
+      return 'Bonus Time';
+    case 'ATTACK_BOOST':
+      return 'Power Sword Boost';
+    default:
+      return type.replace(/_/g, ' ');
+  }
+}
+
+function formatTimeRemaining(expiresAt: Date) {
+  const now = new Date();
+  const diff = expiresAt.getTime() - now.getTime();
+  
+  if (diff <= 0) return 'Expired';
+  
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  } else if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  } else {
+    return `${minutes}m`;
+  }
 } 

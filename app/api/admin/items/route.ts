@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
     
-    const user = await (db as any).user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: session.user.id },
     });
     

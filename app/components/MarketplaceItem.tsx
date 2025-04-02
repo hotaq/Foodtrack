@@ -22,6 +22,7 @@ interface MarketplaceItemProps {
   quantity: number;
   lastUsed: string | null;
   canAfford: boolean;
+  isAdmin: boolean;
   onPurchase: (itemId: string) => Promise<void>;
   onUse: (itemId: string) => Promise<void>;
 }
@@ -40,6 +41,7 @@ export function MarketplaceItem({
   quantity,
   lastUsed,
   canAfford,
+  isAdmin,
   onPurchase,
   onUse
 }: MarketplaceItemProps) {
@@ -49,6 +51,9 @@ export function MarketplaceItem({
 
   // Check if the item is on cooldown
   const isOnCooldown = () => {
+    // Admin bypass: Return false immediately for admins
+    if (isAdmin) return false;
+    
     if (!lastUsed || !cooldown) return false;
     
     const lastUsedDate = new Date(lastUsed);
@@ -197,26 +202,31 @@ export function MarketplaceItem({
             ) : onCooldown ? (
               <div className="flex items-center space-x-1">
                 <Clock className="h-4 w-4 mr-1" />
-                <span>{cooldownRemaining}</span>
+                <span>{cooldownRemaining} {isAdmin && "(Admin bypasses cooldown)"}</span>
               </div>
             ) : quantity <= 0 ? (
               "Out of Stock"
             ) : (
               <>
                 <Check className="h-4 w-4 mr-1" />
-                Use
+                {isAdmin ? "Use (Admin)" : "Use"}
               </>
             )}
           </Button>
         ) : (
           <Button 
             onClick={handlePurchase} 
-            disabled={isPurchasing || !canAfford}
-            variant={canAfford ? "default" : "outline"}
+            disabled={isPurchasing || (!canAfford && !isAdmin)}
+            variant={canAfford || isAdmin ? "default" : "outline"}
             size="sm"
           >
             {isPurchasing ? (
               "Buying..."
+            ) : isAdmin ? (
+              <>
+                <ShoppingCart className="h-4 w-4 mr-1" />
+                Buy (Admin)
+              </>
             ) : canAfford ? (
               <>
                 <ShoppingCart className="h-4 w-4 mr-1" />
@@ -225,7 +235,7 @@ export function MarketplaceItem({
             ) : (
               <>
                 <AlertCircle className="h-4 w-4 mr-1" />
-                Can't Afford
+                Can&apos;t Afford
               </>
             )}
           </Button>

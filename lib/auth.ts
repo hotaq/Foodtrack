@@ -8,43 +8,45 @@ import FacebookProvider from "next-auth/providers/facebook";
 import { db } from "@/lib/db";
 import { Adapter } from "next-auth/adapters";
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db) as Adapter,
-  secret: process.env.NEXTAUTH_SECRET,
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-    signOut: "/",
-    error: "/error",
-  },
-  debug: process.env.NODE_ENV === "development",
-  providers: [
+// Prepare providers array
+const providers = [];
+
+// Only add Google provider if environment variables are set
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  providers.push(
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    }),
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    })
+  );
+}
+
+// Only add Facebook provider if environment variables are set
+if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
+  providers.push(
     FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID as string,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
-    }),
-    CredentialsProvider({
-      name: "credentials",
-      credentials: {
-        emailOrUsername: { label: "Email or Username", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
+      clientId: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+    })
+  );
+}
+
+// Always add Credentials provider
+providers.push(
+  CredentialsProvider({
+    name: "credentials",
+    credentials: {
+      emailOrUsername: { label: "Email or Username", type: "text" },
+      password: { label: "Password", type: "password" },
+    },
+    async authorize(credentials) {
+      try {
         if (!credentials?.emailOrUsername || !credentials?.password) {
-          console.log("Missing credentials");
           throw new Error("Missing credentials");
         }
 
         // Check if input is email or username
         const isEmail = credentials.emailOrUsername.includes('@');
-        
-        console.log(`Attempting to find user by ${isEmail ? 'email' : 'username'}: ${credentials.emailOrUsername}`);
         
         // Find user by email or name (username)
         const user = await db.user.findFirst({
@@ -54,30 +56,24 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          console.log("User not found");
           throw new Error("User not found");
         }
 
         if (!user.password) {
-          console.log("User has no password (OAuth account)");
           throw new Error("This account doesn't have a password (try using social login)");
         }
 
         // Check if user is banned
         if ((user as any).status === 'BANNED' || user.isBanned) {
-          console.log("User is banned");
           throw new Error('Your account has been banned');
         }
 
-        console.log("Comparing passwords");
         const isPasswordValid = await compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
-          console.log("Invalid password");
           throw new Error("Invalid password");
         }
 
-        console.log("Authentication successful");
         return {
           id: user.id,
           email: user.email,
@@ -85,9 +81,27 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           role: user.role,
         };
-      },
-    }),
-  ],
+      } catch (error) {
+        console.error("Auth error:", error);
+        throw error;
+      }
+    },
+  })
+);
+
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(db) as Adapter,
+  secret: process.env.NEXTAUTH_SECRET || "supersecretkeyforfoodtrackapp",
+  session: {
+    strategy: "jwt",
+  },
+  pages: {
+    signIn: "/login",
+    signOut: "/",
+    error: "/error",
+  },
+  debug: process.env.NODE_ENV === "development",
+  providers,
   callbacks: {
     async jwt({ token, user, account }) {
       // Initial sign in
@@ -111,16 +125,7 @@ export const authOptions: NextAuthOptions = {
       };
     },
     async signIn({ user, account, profile }) {
-      // Allow OAuth providers to sign in
-      if (account?.provider === "google" || account?.provider === "facebook") {
-        return true;
-      }
-
-      // For credentials, we already checked in authorize
-      if (account?.provider === "credentials") {
-        return true;
-      }
-
+      // Allow all sign-ins
       return true;
     },
   },

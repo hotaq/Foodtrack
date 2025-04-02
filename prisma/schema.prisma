@@ -156,6 +156,8 @@ model Quest {
   type         QuestType
   requirement  Int         @default(1)    // Number of tasks to complete (e.g., meals, items used)
   isActive     Boolean     @default(true)
+  startDate    DateTime?   // When the quest becomes available
+  endDate      DateTime?   // When the quest expires
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   createdBy    String      // Admin who created the quest
@@ -307,5 +309,17 @@ model ActiveEffect {
   multiplier     Float?    // For score multiplier effects
   timeExtension  Int?      // Minutes to extend meal submission windows
   expiresAt      DateTime  // When the effect expires
+  createdAt      DateTime  @default(now())
+}
+
+// System notifications
+model Notification {
+  id             String    @id @default(cuid())
+  title          String
+  content        String
+  type           String    // Type of notification (SYSTEM, USER, etc)
+  isRead         Boolean   @default(false)
+  isGlobal       Boolean   @default(false)  // If true, shows to all users
+  userId         String?   // Optional: specific user this notification is for
   createdAt      DateTime  @default(now())
 }

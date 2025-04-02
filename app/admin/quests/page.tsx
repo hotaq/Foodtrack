@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   description: "Manage quests for users",
 };
 
+// Disable the React hydration warnings 
+// This is necessary because form elements get additional attributes from browser extensions
+export const dynamic = 'force-dynamic';
+
 export default async function QuestManagementPage() {
   // Check if user is authenticated and is an admin
   const session = await getServerSession(authOptions);
@@ -18,7 +22,7 @@ export default async function QuestManagementPage() {
     redirect("/login");
   }
   
-  const user = await (db as any).user.findUnique({
+  const user = await db.user.findUnique({
     where: { id: session.user.id },
   });
   
@@ -26,31 +30,57 @@ export default async function QuestManagementPage() {
     redirect("/dashboard");
   }
   
-  // Fetch quests directly from the database instead of using API
-  const quests = await (db as any).quest.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      _count: {
-        select: {
-          userQuests: true,
+  try {
+    // Fetch quests directly from the database instead of using API
+    const quests = await db.quest.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            userQuests: true,
+          },
         },
       },
-    },
-  });
-  
-  // Get quest stats
-  const activeQuestsCount = quests.filter((q: any) => q.isActive).length;
-  const totalUserQuestsCount = await (db as any).userQuest.count();
-  const completedQuestsCount = await (db as any).userQuest.count({
-    where: { isCompleted: true },
-  });
-  
-  return (
-    <AdminQuestPage 
-      quests={quests} 
-      activeQuestsCount={activeQuestsCount}
-      totalUserQuestsCount={totalUserQuestsCount}
-      completedQuestsCount={completedQuestsCount}
-    />
-  );
+    });
+    
+    // Ensure each quest has _count property
+    const safeQuests = quests.map(quest => {
+      // Convert Date objects to strings to match QuestType interface
+      const formattedQuest = {
+        ...quest,
+        createdAt: quest.createdAt.toISOString(),
+        updatedAt: quest.updatedAt.toISOString(),
+        _count: quest._count || { userQuests: 0 }
+      };
+      
+      return formattedQuest;
+    });
+    
+    // Get quest stats
+    const activeQuestsCount = safeQuests.filter(q => q.isActive).length;
+    const totalUserQuestsCount = await db.userQuest.count();
+    const completedQuestsCount = await db.userQuest.count({
+      where: { isCompleted: true },
+    });
+    
+    return (
+      <AdminQuestPage 
+        quests={safeQuests} 
+        activeQuestsCount={activeQuestsCount}
+        totalUserQuestsCount={totalUserQuestsCount}
+        completedQuestsCount={completedQuestsCount}
+      />
+    );
+  } catch (error) {
+    console.error("Error fetching quests data:", error);
+    // Return minimal data to avoid crashes
+    return (
+      <AdminQuestPage 
+        quests={[]} 
+        activeQuestsCount={0}
+        totalUserQuestsCount={0}
+        completedQuestsCount={0}
+      />
+    );
+  }
 } 

@@ -4,6 +4,221 @@ import { hash } from "bcrypt";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+// GET /api/admin/users/[id] - Get user details
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Check if user is authenticated and is an admin
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || session.user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const userId = params.id;
+
+    // Get basic user data
+    const user = await db.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Get related data with separate queries to avoid Prisma schema issues
+    const streak = await db.streak.findFirst({
+      where: { userId }
+    });
+    
+    const score = await db.score.findFirst({
+      where: { userId }
+    });
+    
+    const mealCount = await db.meal.count({
+      where: { userId }
+    });
+    
+    // Try to get completed quests count, handling potential schema differences
+    let completedQuestsCount = 0;
+    try {
+      // First try with userQuest if that relation exists
+      completedQuestsCount = await db.userQuest.count({
+        where: { 
+          userId,
+          isCompleted: true
+        }
+      });
+    } catch (error) {
+      console.error("Error counting completed quests:", error);
+      // Fallback to 0 if the relation doesn't exist
+    }
+
+    // Format the user data
+    const userDetails = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      role: user.role,
+      status: user.status || "ACTIVE",
+      isBanned: user.isBanned || false,
+      currentStreak: streak?.currentStreak || 0,
+      bestStreak: streak?.longestStreak || 0,
+      score: score?.points || 0,
+      mealCount,
+      completedQuests: completedQuestsCount,
+      createdAt: user.createdAt
+    };
+
+    return NextResponse.json(userDetails);
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch user details" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/admin/users/[id] - Update user details
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Check if user is authenticated and is an admin
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || session.user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const userId = params.id;
+    const {
+      name,
+      email,
+      password,
+      currentStreak,
+      bestStreak,
+      score,
+      status,
+      role
+    } = await req.json();
+
+    // Get the user
+    const user = await db.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Prepare data for update
+    const updateData: {
+      name: string;
+      email: string;
+      role: string;
+      status: string;
+      password?: string;
+    } = {
+      name,
+      email,
+      role,
+      status,
+    };
+
+    // Only update password if provided
+    if (password) {
+      updateData.password = await hash(password, 10);
+    }
+
+    // Get or create user streak to update
+    const userStreak = await db.streak.findFirst({
+      where: { userId }
+    });
+
+    if (userStreak) {
+      // Update existing streak
+      await db.streak.update({
+        where: { id: userStreak.id },
+        data: {
+          currentStreak,
+          longestStreak: bestStreak
+        }
+      });
+    } else {
+      // Create new streak record if none exists
+      await db.streak.create({
+        data: {
+          userId,
+          currentStreak,
+          longestStreak: bestStreak
+        }
+      });
+    }
+
+    // Update score if provided
+    if (typeof score === 'number') {
+      const userScore = await db.score.findFirst({
+        where: { userId }
+      });
+
+      if (userScore) {
+        await db.score.update({
+          where: { id: userScore.id },
+          data: { points: score }
+        });
+      } else {
+        await db.score.create({
+          data: {
+            userId,
+            points: score
+          }
+        });
+      }
+    }
+
+    // Update user
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        isBanned: true,
+      },
+    });
+
+    return NextResponse.json({
+      message: "User updated successfully",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    return NextResponse.json(
+      { error: "Failed to update user: " + (error instanceof Error ? error.message : "Unknown error") },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH /api/admin/users/[id] - Update user (ban/unban or reset password)
 export async function PATCH(
   req: NextRequest,

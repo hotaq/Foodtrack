@@ -22,8 +22,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Item ID is required" }, { status: 400 });
     }
     
-    // Check if user has the item
-    const userItem = await (db as any).userItem.findFirst({
+    // Check if user has the item with sufficient quantity
+    const userItem = await db.userItem.findFirst({
       where: {
         userId: session.user.id,
         itemId,
@@ -41,9 +41,18 @@ export async function POST(req: Request) {
     // Check cooldown period if applicable
     if (userItem.lastUsed && userItem.item.cooldown) {
       const cooldownEnds = new Date(userItem.lastUsed);
-      cooldownEnds.setSeconds(cooldownEnds.getSeconds() + userItem.item.cooldown); // Using seconds from the schema
+      // Convert hours to milliseconds (cooldown is stored in hours)
+      cooldownEnds.setHours(cooldownEnds.getHours() + userItem.item.cooldown);
       
-      if (cooldownEnds > new Date()) {
+      // Check if the user is an admin
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+      const isAdmin = user && user.role === "ADMIN";
+      
+      // Allow admins to bypass cooldown
+      if (!isAdmin && cooldownEnds > new Date()) {
         const timeRemaining = Math.ceil((cooldownEnds.getTime() - new Date().getTime()) / (1000 * 60));
         return NextResponse.json({ 
           message: `This item is on cooldown. Try again in ${timeRemaining} minute(s)` 
@@ -78,6 +87,21 @@ export async function POST(req: Request) {
           effectResult = "SCORE_MULTIPLIER_APPLIED";
           break;
           
+        case "ATTACK_BOOST":
+          // Create an active effect for attack boost
+          await (db as any).activeEffect.create({
+            data: {
+              userId,
+              itemId,
+              type: "ATTACK_BOOST",
+              multiplier: 2.0, // 2x attack power
+              expiresAt: new Date(Date.now() + (userItem.item.duration || 3600) * 1000),
+            }
+          });
+          effectMessage = "Attack Boost activated! Your attack power is now doubled for a limited time.";
+          effectResult = "ATTACK_BOOST_APPLIED";
+          break;
+          
         case "TIME_EXTENSION":
           // Create an active effect for time extension
           await (db as any).activeEffect.create({
@@ -93,6 +117,59 @@ export async function POST(req: Request) {
           effectResult = "TIME_EXTENSION_APPLIED";
           break;
           
+        case "STREAK_DECREASE":
+          // Verify target user exists
+          if (!targetUserId) {
+            return NextResponse.json({ 
+              message: "You must select a target user to use this item" 
+            }, { status: 400 });
+          }
+          
+          // Check if target user exists
+          const targetUser = await (db as any).user.findUnique({
+            where: { id: targetUserId },
+            include: { streak: true }
+          });
+          
+          if (!targetUser) {
+            return NextResponse.json({ 
+              message: "Target user not found" 
+            }, { status: 404 });
+          }
+          
+          // Check if target user has streak protection active
+          const activeProtection = await (db as any).activeEffect.findFirst({
+            where: {
+              userId: targetUserId,
+              type: "STREAK_PROTECT",
+              expiresAt: { gt: new Date() }
+            }
+          });
+          
+          if (activeProtection) {
+            effectMessage = "Attack failed! Target user has an active Shield of Protection.";
+            effectResult = "ATTACK_BLOCKED";
+          } else if (targetUser.streak && targetUser.streak.currentStreak > 0) {
+            // For Magic Wand, decrease by a random amount between 1-3
+            const decreaseAmount = Math.floor(Math.random() * 3) + 1;
+            const newStreak = Math.max(0, targetUser.streak.currentStreak - decreaseAmount);
+            
+            // Update the target user's streak
+            await (db as any).streak.update({
+              where: { userId: targetUserId },
+              data: {
+                currentStreak: newStreak
+              }
+            });
+            
+            effectMessage = `Attack successful! You decreased ${targetUser.name}'s streak by ${decreaseAmount} points!`;
+            effectResult = "STREAK_DECREASED";
+          } else {
+            effectMessage = "Attack had no effect. Target user has no active streak.";
+            effectResult = "NO_EFFECT";
+          }
+          break;
+          
         default:
           effectMessage = "Item used successfully, but no special effect was applied.";
           effectResult = "NO_EFFECT";
@@ -102,16 +179,37 @@ export async function POST(req: Request) {
       switch (userItem.item.effect) {
         case "STREAK_PROTECT":
           // Create an active effect for streak protection
+          // Duration is stored in hours in the database, convert to seconds for calculation
+          // 1 hour = 3600 seconds
+          const durationInSeconds = userItem.item.duration ? userItem.item.duration * 3600 : 86400; // Default 24 hours
           await (db as any).activeEffect.create({
             data: {
               userId,
               itemId,
               type: "STREAK_PROTECT",
-              expiresAt: new Date(Date.now() + (userItem.item.duration || 86400) * 1000),
+              expiresAt: new Date(Date.now() + durationInSeconds * 1000), // Convert seconds to milliseconds
             }
           });
-          effectMessage = "Shield of Protection activated! Your streak is now protected from attacks for 24 hours.";
+          const durationHours = Math.floor(durationInSeconds / 3600);
+          effectMessage = `Shield of Protection activated! Your streak is now protected from attacks for ${durationHours} hours.`;
           effectResult = "STREAK_PROTECTION_APPLIED";
+          break;
+          
+        case "ATTACK_BOOST":
+          // Create an active effect for attack boost
+          const attackBoostDuration = userItem.item.duration ? userItem.item.duration * 3600 : 86400; // Default 24 hours
+          await (db as any).activeEffect.create({
+            data: {
+              userId,
+              itemId,
+              type: "ATTACK_BOOST",
+              multiplier: 2.0, // 2x attack power
+              expiresAt: new Date(Date.now() + attackBoostDuration * 1000), // Convert seconds to milliseconds
+            }
+          });
+          const boostHours = Math.floor(attackBoostDuration / 3600);
+          effectMessage = `Power Sword activated! Your attack power is now doubled for ${boostHours} hours.`;
+          effectResult = "ATTACK_BOOST_APPLIED";
           break;
           
         case "STREAK_DECREASE":
@@ -179,12 +277,14 @@ export async function POST(req: Request) {
     }
     
     // Update userItem (decrease quantity and set lastUsed)
+    // Make sure we don't go below 0
+    const updatedQuantity = Math.max(0, userItem.quantity - 1);
     await (db as any).userItem.update({
       where: {
         id: userItem.id
       },
       data: {
-        quantity: { decrement: 1 },
+        quantity: updatedQuantity,
         lastUsed: new Date()
       }
     });

@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['files.edgestore.dev'],
+    domains: ['files.edgestore.dev', 'img.icons8.com'],
   },
   eslint: {
     ignoreDuringBuilds: true,

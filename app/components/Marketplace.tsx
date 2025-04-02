@@ -6,11 +6,7 @@ import { useToast } from "@/lib/use-toast-hook";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
+ 
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -22,9 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
+
 import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MarketplaceItem } from "./MarketplaceItem";
 
 interface Item {
   id: string;
@@ -136,7 +133,7 @@ export default function Marketplace() {
       if (dialogAction === "purchase") {
         await purchaseItem(selectedItem.id);
       } else {
-        await useItem(selectedItem.id, needsTarget ? selectedTargetId : undefined);
+        await handleUseItem(selectedItem.id, needsTarget ? selectedTargetId : undefined);
       }
     } finally {
       setActionLoading(false);
@@ -183,7 +180,7 @@ export default function Marketplace() {
     }
   };
 
-  const useItem = async (itemId: string, targetUserId?: string) => {
+  const handleUseItem = async (itemId: string, targetUserId?: string) => {
     try {
       const response = await fetch("/api/items/use", {
         method: "POST",
@@ -263,68 +260,24 @@ export default function Marketplace() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {items.map((item) => (
                 <Card key={item.id} className={`overflow-hidden ${!item.isActive ? 'border-orange-500 border-2' : ''} ${!item.canAfford && !item.userOwns && !isAdmin ? 'opacity-70' : ''}`}>
-                  <div className="relative h-40 w-full bg-slate-100">
-                    {item.imageUrl ? (
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center bg-slate-200">
-                        <span className="text-3xl">🎁</span>
-                      </div>
-                    )}
-                    <Badge className="absolute top-2 right-2 bg-primary/80">
-                      {formatItemType(item.type)}
-                    </Badge>
-                    {!item.isActive && (
-                      <Badge className="absolute top-2 left-2 bg-orange-500">
-                        Inactive
-                      </Badge>
-                    )}
-                  </div>
-                  <CardHeader>
-                    <CardTitle className="flex justify-between">
-                      <span>{item.name}</span>
-                      <span className={isAdmin ? "line-through decoration-2 decoration-primary text-muted-foreground" : ""}>
-                        {item.price} 🏆
-                        {isAdmin && <span className="ml-2 text-sm text-primary font-bold no-underline">FREE</span>}
-                      </span>
-                    </CardTitle>
-                    <CardDescription>
-                      {item.userOwns ? `You own: ${item.quantity}` : ''}
-                      {isAdmin && !item.userOwns && <span className="text-green-600">Admin privileges: Purchase for free</span>}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{item.description}</p>
-                    {item.cooldown && item.cooldown > 0 && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        Cooldown: {item.cooldown} hour{item.cooldown !== 1 ? 's' : ''}
-                      </p>
-                    )}
-                  </CardContent>
-                  <CardFooter>
-                    {item.userOwns ? (
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => handleItemAction(item, "purchase")}
-                      >
-                        Buy More
-                      </Button>
-                    ) : (
-                      <Button 
-                        disabled={!item.canAfford && !isAdmin}
-                        className={`w-full ${isAdmin ? "bg-green-600 hover:bg-green-700" : ""}`}
-                        onClick={() => handleItemAction(item, "purchase")}
-                      >
-                        {isAdmin ? "Purchase (Admin)" : "Purchase"}
-                      </Button>
-                    )}
-                  </CardFooter>
+                  <MarketplaceItem
+                    id={item.id}
+                    name={item.name}
+                    description={item.description}
+                    imageUrl={item.imageUrl || "/placeholder.png"}
+                    price={item.price}
+                    type={item.type}
+                    effect={item.effect}
+                    duration={item.duration}
+                    cooldown={item.cooldown}
+                    userOwns={item.userOwns}
+                    quantity={item.quantity}
+                    lastUsed={item.lastUsed}
+                    canAfford={item.canAfford}
+                    isAdmin={isAdmin}
+                    onPurchase={async () => await handleItemAction(item, "purchase")}
+                    onUse={async () => await handleItemAction(item, "use")}
+                  />
                 </Card>
               ))}
             </div>
@@ -334,7 +287,7 @@ export default function Marketplace() {
         <TabsContent value="inventory" className="mt-6">
           {items.filter(item => item.userOwns && item.quantity > 0).length === 0 ? (
             <div className="text-center py-10">
-              <p className="text-gray-500">You don't own any items yet. Purchase some from the shop!</p>
+              <p className="text-gray-500">You don&apos;t own any items yet. Purchase some from the shop!</p>
               <Button
                 variant="outline"
                 className="mt-4"
@@ -349,51 +302,24 @@ export default function Marketplace() {
                 .filter(item => item.userOwns && item.quantity > 0)
                 .map((item) => (
                   <Card key={item.id} className="overflow-hidden">
-                    <div className="relative h-40 w-full bg-slate-100">
-                      {item.imageUrl ? (
-                        <Image
-                          src={item.imageUrl}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center bg-slate-200">
-                          <span className="text-3xl">🎁</span>
-                        </div>
-                      )}
-                      <Badge className="absolute top-2 right-2 bg-primary/80">
-                        {formatItemType(item.type)}
-                      </Badge>
-                    </div>
-                    <CardHeader>
-                      <CardTitle>{item.name}</CardTitle>
-                      <CardDescription>Quantity: {item.quantity}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm">{item.description}</p>
-                      {item.cooldown && item.cooldown > 0 && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          Cooldown: {item.cooldown} hour{item.cooldown !== 1 ? 's' : ''}
-                        </p>
-                      )}
-                    </CardContent>
-                    <CardFooter className="flex gap-2">
-                      <Button 
-                        className="flex-1"
-                        onClick={() => handleItemAction(item, "use")}
-                        disabled={item.quantity <= 0}
-                      >
-                        Use Item
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => handleItemAction(item, "purchase")}
-                      >
-                        Buy More
-                      </Button>
-                    </CardFooter>
+                    <MarketplaceItem
+                      id={item.id}
+                      name={item.name}
+                      description={item.description}
+                      imageUrl={item.imageUrl || "/placeholder.png"}
+                      price={item.price}
+                      type={item.type}
+                      effect={item.effect}
+                      duration={item.duration}
+                      cooldown={item.cooldown}
+                      userOwns={item.userOwns}
+                      quantity={item.quantity}
+                      lastUsed={item.lastUsed}
+                      canAfford={item.canAfford}
+                      isAdmin={isAdmin}
+                      onPurchase={async () => await handleItemAction(item, "purchase")}
+                      onUse={async () => await handleItemAction(item, "use")}
+                    />
                   </Card>
               ))}
             </div>
@@ -416,12 +342,12 @@ export default function Marketplace() {
                 : dialogAction === "purchase" 
                   ? `Are you sure you want to spend ${selectedItem?.price} score points to purchase this item?`
                   : `Are you sure you want to use this item? This will consume 1 from your inventory.`}
-              {dialogAction === "use" && selectedItem?.effect && (
-                <div className="mt-2 p-2 bg-primary/10 rounded-md text-sm">
-                  <span className="font-semibold">Effect:</span> {selectedItem.effect}
-                </div>
-              )}
             </DialogDescription>
+            {dialogAction === "use" && selectedItem?.effect && (
+              <div className="mt-2 p-2 bg-primary/10 rounded-md text-sm">
+                <span className="font-semibold">Effect:</span> {selectedItem.effect}
+              </div>
+            )}
           </DialogHeader>
           {selectedItem && (
             <div className="py-4">
@@ -464,7 +390,7 @@ export default function Marketplace() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground mt-2">
-                    The selected user will have their streak decreased by 1 if they don't have active protection.
+                    The selected user will have their streak decreased by 1 if they don&apos;t have active protection.
                   </p>
                 </div>
               )}
