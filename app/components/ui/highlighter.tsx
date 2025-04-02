@@ -138,6 +138,7 @@ export function Particles({ className = '', color = 'rgba(255, 182, 71, 0.3)', q
   const containerRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number | undefined>(undefined);
   const previousTimeRef = useRef<number | undefined>(undefined);
+  const particlesRef = useRef<Circle[]>([]); // Add a ref to store current particles
 
   useEffect(() => {
     // Initialize particles
@@ -148,19 +149,24 @@ export function Particles({ className = '', color = 'rgba(255, 182, 71, 0.3)', q
       opacity: Math.random() * 0.5 + 0.2,
     }));
     setParticles(newParticles);
+    particlesRef.current = newParticles; // Store in ref
   }, [quantity]);
 
   useEffect(() => {
     const animate = (time: number) => {
       if (previousTimeRef.current !== undefined) {
-        setParticles(prevParticles => 
-          prevParticles.map(particle => ({
-            ...particle,
-            x: particle.x + Math.sin(time * 0.001 + particle.y * 0.1) * 0.5,
-            y: particle.y + Math.cos(time * 0.001 + particle.x * 0.1) * 0.5,
-            opacity: 0.2 + Math.sin(time * 0.001 + particle.x * 0.1) * 0.3,
-          }))
-        );
+        // Update particles in the ref without triggering state update every frame
+        particlesRef.current = particlesRef.current.map(particle => ({
+          ...particle,
+          x: particle.x + Math.sin(time * 0.001 + particle.y * 0.1) * 0.5,
+          y: particle.y + Math.cos(time * 0.001 + particle.x * 0.1) * 0.5,
+          opacity: 0.2 + Math.sin(time * 0.001 + particle.x * 0.1) * 0.3,
+        }));
+        
+        // Only update state occasionally to avoid infinite loops
+        if (time % 6 === 0) { // Update roughly every 6 animation frames
+          setParticles([...particlesRef.current]);
+        }
       }
       
       previousTimeRef.current = time;
@@ -173,7 +179,7 @@ export function Particles({ className = '', color = 'rgba(255, 182, 71, 0.3)', q
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, []);
+  }, []); // Empty dependency array to run only once
 
   return (
     <div ref={containerRef} className={`absolute inset-0 pointer-events-none ${className}`}>

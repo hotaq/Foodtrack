@@ -158,6 +158,7 @@ model Quest {
   isActive     Boolean     @default(true)
   startDate    DateTime?   // When the quest becomes available
   endDate      DateTime?   // When the quest expires
+  frequency    String      @default("UNLIMITED") // How often a user can complete this quest: "ONCE", "DAILY", "UNLIMITED"
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   createdBy    String      // Admin who created the quest

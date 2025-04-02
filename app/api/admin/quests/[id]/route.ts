@@ -84,9 +84,9 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     const body = await req.json();
     console.log("Request body:", JSON.stringify(body, null, 2));
     
-    const { title, description, scoreReward, type, requirement, isActive, startDate, endDate } = body;
+    const { title, description, scoreReward, type, requirement, isActive, startDate, endDate, frequency } = body;
     
-    // Log explicitly to identify isActive state
+    // Log explicitly to identify fields
     console.log("Extract fields:", { 
       title, 
       description, 
@@ -96,8 +96,20 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       isActive: typeof isActive,
       isActiveValue: isActive,
       startDate,
-      endDate
+      endDate,
+      frequency,
+      frequencyType: typeof frequency
     });
+    
+    // Ensure frequency is handled correctly
+    let frequencyValue = frequency;
+    if (!frequencyValue && frequencyValue !== null) {
+      // If frequency is undefined or empty string, check existing quest
+      frequencyValue = existingQuest.frequency || "UNLIMITED";
+      console.log("Using default frequency:", frequencyValue);
+    } else {
+      console.log("Using provided frequency:", frequencyValue);
+    }
     
     // Validate required fields
     if (!title || !description || !scoreReward || !type || requirement === undefined) {
@@ -129,9 +141,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         updateData.endDate = endDate;
       }
       
+      if (frequency !== undefined) {
+        // @ts-ignore - Fields exist in DB but Prisma client may not be updated
+        updateData.frequency = frequencyValue;
+      }
+      
       console.log("Update data:", JSON.stringify(updateData, null, 2));
       
-      // Use updateUnchecked to bypass Prisma client validation
+      // Use SQL CASE expressions to handle null values properly
       const result = await db.$queryRaw`
         UPDATE "Quest"
         SET 
@@ -141,8 +158,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
           "type" = ${updateData.type}::"QuestType",
           "requirement" = ${updateData.requirement},
           "isActive" = ${updateData.isActive},
-          "startDate" = ${startDate !== undefined ? startDate : existingQuest.startDate}::timestamp,
-          "endDate" = ${endDate !== undefined ? endDate : existingQuest.endDate}::timestamp,
+          "startDate" = CASE 
+            WHEN ${startDate === null} THEN NULL 
+            WHEN ${startDate === undefined} THEN "startDate" 
+            ELSE ${startDate}::timestamp 
+          END,
+          "endDate" = CASE 
+            WHEN ${endDate === null} THEN NULL 
+            WHEN ${endDate === undefined} THEN "endDate" 
+            ELSE ${endDate}::timestamp 
+          END,
+          "frequency" = ${frequencyValue},
           "updatedAt" = ${updateData.updatedAt}
         WHERE "id" = ${id}
         RETURNING *

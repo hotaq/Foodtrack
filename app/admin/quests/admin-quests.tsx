@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { 
   Award, 
   Check, 
@@ -16,6 +16,7 @@ import {
   Trophy, 
   Users,
   Loader2,
+  AlertCircle
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/lib/use-toast-hook";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Define types
 interface QuestType {
@@ -40,6 +47,7 @@ interface QuestType {
   isActive: boolean;
   startDate: string | null;
   endDate: string | null;
+  frequency: string;
   createdAt: string;
   updatedAt: string;
   createdBy: string;
@@ -71,6 +79,16 @@ export default function AdminQuestPage({
   const [activeTab, setActiveTab] = useState("all");
   const [saving, setSaving] = useState(false);
   const [isQuestActive, setIsQuestActive] = useState(true);
+  const [startDateTime, setStartDateTime] = useState<string>(
+    currentQuest?.startDate ? new Date(currentQuest.startDate).toISOString().slice(0, 16) : ""
+  );
+  const [endDateTime, setEndDateTime] = useState<string>(
+    currentQuest?.endDate ? new Date(currentQuest.endDate).toISOString().slice(0, 16) : ""
+  );
+  const [frequency, setFrequency] = useState<string>(currentQuest?.frequency || "UNLIMITED");
+
+  // Add a ref to store the selected frequency value
+  const frequencyRef = useRef<string>(currentQuest?.frequency || "UNLIMITED");
 
   // Filter quests based on search term and active status
   React.useEffect(() => {
@@ -95,6 +113,28 @@ export default function AdminQuestPage({
     
     setFilteredQuests(result);
   }, [quests, searchTerm, showOnlyActive, activeTab]);
+
+  // Update state when current quest changes
+  React.useEffect(() => {
+    if (currentQuest) {
+      setStartDateTime(currentQuest.startDate ? new Date(currentQuest.startDate).toISOString().slice(0, 16) : "");
+      setEndDateTime(currentQuest.endDate ? new Date(currentQuest.endDate).toISOString().slice(0, 16) : "");
+      setIsQuestActive(currentQuest.isActive);
+      if (isDialogOpen) {
+        const newFrequency = currentQuest.frequency || "UNLIMITED";
+        setFrequency(newFrequency);
+        frequencyRef.current = newFrequency;
+      }
+    } else {
+      setStartDateTime("");
+      setEndDateTime("");
+      setIsQuestActive(true);
+      if (isDialogOpen) {
+        setFrequency("UNLIMITED");
+        frequencyRef.current = "UNLIMITED";
+      }
+    }
+  }, [currentQuest, isDialogOpen]);
 
   // Handle new/edit quest
   const handleQuestAction = (quest?: QuestType) => {
@@ -126,8 +166,8 @@ export default function AdminQuestPage({
     const rewardInput = form.querySelector('#reward') as HTMLInputElement;
     const requirementInput = form.querySelector('#requirement') as HTMLInputElement;
     const typeSelect = form.querySelector('#type') as HTMLSelectElement;
-    const startDateTimeInput = form.querySelector('#startDateTime') as HTMLInputElement;
-    const endDateTimeInput = form.querySelector('#endDateTime') as HTMLInputElement;
+    
+    console.log("Current frequency state before submission:", frequency);
     
     const questData = {
       title: titleInput.value,
@@ -136,8 +176,9 @@ export default function AdminQuestPage({
       requirement: parseInt(requirementInput.value),
       type: typeSelect.value,
       isActive: isQuestActive,
-      startDate: startDateTimeInput.value ? new Date(startDateTimeInput.value).toISOString() : null,
-      endDate: endDateTimeInput.value ? new Date(endDateTimeInput.value).toISOString() : null,
+      startDate: startDateTime ? new Date(startDateTime).toISOString() : null,
+      endDate: endDateTime ? new Date(endDateTime).toISOString() : null,
+      frequency: frequency || frequencyRef.current,
     };
     
     console.log("Submitting quest data:", questData);
@@ -164,6 +205,7 @@ export default function AdminQuestPage({
         let newQuest;
         try {
           newQuest = JSON.parse(responseData).quest;
+          console.log("Successfully created quest:", newQuest);
         } catch (e) {
           console.error("Failed to parse response:", e);
         }
@@ -171,6 +213,9 @@ export default function AdminQuestPage({
         // Immediately update the local quest list with the new quest if we got data back
         if (newQuest) {
           setFilteredQuests(prev => [...prev, newQuest]);
+          // Update quests directly without reloading
+          const updatedQuests = [...quests, newQuest];
+          quests.splice(0, quests.length, ...updatedQuests);
         }
         
       } else if (isEditMode && currentQuest?.id) {
@@ -197,6 +242,7 @@ export default function AdminQuestPage({
         let updatedQuest;
         try {
           updatedQuest = JSON.parse(responseData).quest;
+          console.log("Successfully updated quest:", updatedQuest);
         } catch (e) {
           console.error("Failed to parse response:", e);
         }
@@ -206,6 +252,11 @@ export default function AdminQuestPage({
           setFilteredQuests(prev => prev.map(q => 
             q.id === updatedQuest.id ? updatedQuest : q
           ));
+          // Update quests directly without reloading
+          const questIndex = quests.findIndex(q => q.id === updatedQuest.id);
+          if (questIndex !== -1) {
+            quests[questIndex] = updatedQuest;
+          }
         }
       } else {
         throw new Error("Invalid quest state for edit/create operation");
@@ -213,9 +264,6 @@ export default function AdminQuestPage({
       
       // Close dialog 
       setIsDialogOpen(false);
-      
-      // Force a full page refresh to ensure all data is up-to-date
-      window.location.reload();
       
       toast({
         title: isEditMode ? 'Quest updated' : 'Quest created',
@@ -380,14 +428,20 @@ export default function AdminQuestPage({
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="max-w-[700px]">
           <DialogHeader>
-            <DialogTitle>{isEditMode ? "Edit Quest" : "Create New Quest"}</DialogTitle>
+            <DialogTitle>{currentQuest ? "Edit Quest" : "Create New Quest"}</DialogTitle>
             <DialogDescription>
-              {isEditMode 
-                ? "Modify the details of an existing quest" 
-                : "Define a new challenge for your users to complete"}
+              {currentQuest ? "Update quest details" : "Add a new quest for users to complete."}
             </DialogDescription>
+            <Alert className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Automatic Activation</AlertTitle>
+              <AlertDescription>
+                Quests with future start dates will be automatically activated when that date/time arrives.
+                You can set quests as inactive and schedule their activation for a future date.
+              </AlertDescription>
+            </Alert>
           </DialogHeader>
           
           <form onSubmit={handleQuestSubmit}>
@@ -467,7 +521,8 @@ export default function AdminQuestPage({
                   <Input
                     id="startDateTime"
                     type="datetime-local"
-                    defaultValue={currentQuest?.startDate ? new Date(currentQuest.startDate).toISOString().slice(0, 16) : ""}
+                    value={startDateTime}
+                    onChange={(e) => setStartDateTime(e.target.value)}
                     suppressHydrationWarning
                   />
                 </div>
@@ -477,7 +532,8 @@ export default function AdminQuestPage({
                   <Input
                     id="endDateTime"
                     type="datetime-local"
-                    defaultValue={currentQuest?.endDate ? new Date(currentQuest.endDate).toISOString().slice(0, 16) : ""}
+                    value={endDateTime}
+                    onChange={(e) => setEndDateTime(e.target.value)}
                     suppressHydrationWarning
                   />
                 </div>
@@ -491,6 +547,39 @@ export default function AdminQuestPage({
                   onCheckedChange={setIsQuestActive}
                   suppressHydrationWarning
                 />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="frequency">Completion Frequency</Label>
+                <div id="frequency">
+                  <Select 
+                    value={frequency}
+                    onValueChange={(value) => {
+                      console.log("Frequency changed to:", value);
+                      setFrequency(value);
+                      frequencyRef.current = value; // Store in ref as backup
+                    }}
+                    onOpenChange={(open) => {
+                      // When dropdown closes, ensure state matches ref
+                      if (!open && frequencyRef.current !== frequency) {
+                        console.log("Syncing frequency from ref:", frequencyRef.current);
+                        setFrequency(frequencyRef.current);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="How often can users complete this quest?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ONCE">Once Only (Never resets)</SelectItem>
+                      <SelectItem value="DAILY">Daily (Resets every day)</SelectItem>
+                      <SelectItem value="UNLIMITED">Unlimited (Complete multiple times)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Controls how often the same user can complete this quest
+                </div>
               </div>
             </div>
             
@@ -565,6 +654,7 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
             <th className="text-center p-4 font-medium">Assigned</th>
             <th className="text-center p-4 font-medium">Status</th>
             <th className="text-center p-4 font-medium">Time Limit</th>
+            <th className="text-center p-4 font-medium">Frequency</th>
             <th className="text-right p-4 font-medium">Actions</th>
           </tr>
         </thead>
@@ -629,6 +719,23 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
                   </div>
                 ) : (
                   <span className="text-xs text-muted-foreground">No time limit</span>
+                )}
+              </td>
+              <td className="p-4 text-center">
+                {quest.frequency === "ONCE" && (
+                  <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                    One Time
+                  </Badge>
+                )}
+                {quest.frequency === "DAILY" && (
+                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                    Daily Reset
+                  </Badge>
+                )}
+                {quest.frequency === "UNLIMITED" && (
+                  <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">
+                    Unlimited
+                  </Badge>
                 )}
               </td>
               <td className="p-4 text-right">

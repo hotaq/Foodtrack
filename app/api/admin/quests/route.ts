@@ -22,6 +22,29 @@ export async function GET() {
       return NextResponse.json({ message: "Forbidden: Admin access required" }, { status: 403 });
     }
     
+    // Check for quests with start dates in the past that need activation
+    const now = new Date();
+    const inactiveQuestsToActivate = await db.$queryRaw`
+      SELECT id FROM "Quest" 
+      WHERE "isActive" = false 
+      AND "startDate" IS NOT NULL 
+      AND "startDate" <= ${now}::timestamp
+    `;
+    
+    // Activate any quests that should be active based on startDate
+    if (Array.isArray(inactiveQuestsToActivate) && inactiveQuestsToActivate.length > 0) {
+      console.log(`Activating ${inactiveQuestsToActivate.length} quests based on startDate`);
+      
+      for (const quest of inactiveQuestsToActivate) {
+        await db.$queryRaw`
+          UPDATE "Quest" 
+          SET "isActive" = true, "updatedAt" = NOW() 
+          WHERE id = ${quest.id}
+        `;
+        console.log(`Activated quest ${quest.id} based on startDate`);
+      }
+    }
+    
     // Get all quests
     const quests = await db.quest.findMany({
       orderBy: { createdAt: 'desc' },
@@ -63,7 +86,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("Create quest request body:", JSON.stringify(body, null, 2));
     
-    const { title, description, scoreReward, type, requirement, isActive, startDate, endDate } = body;
+    const { title, description, scoreReward, type, requirement, isActive, startDate, endDate, frequency } = body;
     
     // Validate required fields
     if (!title || !description || !scoreReward || !type || requirement === undefined) {
@@ -80,21 +103,23 @@ export async function POST(req: Request) {
       isActive: Boolean(isActive),
       startDate,
       endDate,
+      frequency: frequency || "UNLIMITED",
       createdBy: session.user.id
     });
     
-    // Use raw query to bypass Prisma client validation
+    // Use CASE statements to handle null values properly in SQL
     const result = await db.$queryRaw`
       INSERT INTO "Quest" (
         "id", "title", "description", "scoreReward", "type", 
         "requirement", "isActive", "startDate", "endDate", 
-        "createdBy", "createdAt", "updatedAt"
+        "frequency", "createdBy", "createdAt", "updatedAt"
       ) 
       VALUES (
         ${randomUUID()}, ${title}, ${description}, ${Number(scoreReward)}, ${type}::"QuestType", 
         ${Number(requirement)}, ${Boolean(isActive)}, 
-        ${startDate ? startDate : null}::timestamp, 
-        ${endDate ? endDate : null}::timestamp, 
+        CASE WHEN ${startDate === null || startDate === ''} THEN NULL ELSE ${startDate}::timestamp END, 
+        CASE WHEN ${endDate === null || endDate === ''} THEN NULL ELSE ${endDate}::timestamp END, 
+        ${frequency || "UNLIMITED"},
         ${session.user.id}, NOW(), NOW()
       )
       RETURNING *
