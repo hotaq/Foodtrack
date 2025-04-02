@@ -1,76 +1,57 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { AnimatedGradient } from "./animated-gradient";
+import * as React from "react"
+import { cn } from "@/lib/utils"
 
-interface BentoCardProps {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  colors: string[];
-  delay?: number;
-  icon?: React.ReactNode;
+interface BentoCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string
+  animation?: "zoom" | "slide" | "none"
+  children: React.ReactNode
 }
 
 export function BentoCard({
-  title,
-  value,
-  subtitle,
-  colors,
-  delay = 0,
-  icon,
+  className,
+  animation = "none",
+  children,
+  ...props
 }: BentoCardProps) {
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: delay + 0.3,
-      },
-    },
-  };
-
-  const item = {
-    hidden: { opacity: 0 },
-    show: { opacity: 1, transition: { duration: 0.5 } },
-  };
+  const animationClasses = {
+    zoom: "transition-transform duration-300 hover:scale-[1.02]",
+    slide: "transition-transform duration-300 hover:translate-y-[-5px]",
+    none: ""
+  }
 
   return (
-    <motion.div
-      className="relative overflow-hidden h-full bg-background dark:bg-background/50 rounded-lg"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5, delay }}
+    <div
+      className={cn(
+        "rounded-2xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow duration-300", 
+        animationClasses[animation],
+        className
+      )}
+      {...props}
     >
-      <AnimatedGradient colors={colors} speed={0.05} blur="medium" />
-      <motion.div
-        className="relative z-10 p-5 md:p-6 text-foreground backdrop-blur-sm h-full"
-        variants={container}
-        initial="hidden"
-        animate="show"
-      >
-        {icon && <motion.div variants={item} className="mb-4">{icon}</motion.div>}
-        <motion.h3 
-          className="text-sm sm:text-base font-medium text-foreground/80" 
-          variants={item}
-        >
-          {title}
-        </motion.h3>
-        <motion.p
-          className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-2 text-foreground"
-          variants={item}
-        >
-          {value}
-        </motion.p>
-        {subtitle && (
-          <motion.p 
-            className="text-sm text-foreground/70" 
-            variants={item}
-          >
-            {subtitle}
-          </motion.p>
-        )}
-      </motion.div>
-    </motion.div>
-  );
+      {children}
+    </div>
+  )
+}
+
+export interface BentoGridProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string
+  children: React.ReactNode
+}
+
+export function BentoGrid({
+  className,
+  children,
+  ...props
+}: BentoGridProps) {
+  return (
+    <div
+      className={cn(
+        "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  )
 } 
