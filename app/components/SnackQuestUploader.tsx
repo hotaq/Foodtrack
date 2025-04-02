@@ -155,6 +155,7 @@ export default function SnackQuestUploader() {
         },
         body: JSON.stringify({
           imageUrl: res.url,
+          imageKey: 'edgestore-snack',
           questId: snackQuests[0]?.id, // Use the first snack quest
         }),
       });

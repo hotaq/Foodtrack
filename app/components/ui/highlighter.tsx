@@ -41,21 +41,30 @@ export function Highlighter({
   const [circles, setCircles] = useState<Circle[]>([]);
   const requestRef = useRef<number | undefined>(undefined);
   const previousTimeRef = useRef<number | undefined>(undefined);
+  const circlesRef = useRef<Circle[]>([]); // Store circles in ref to avoid constant rerenders
+
+  useEffect(() => {
+    circlesRef.current = circles; // Initialize ref with current state
+  }, [circles]);
 
   useEffect(() => {
     const animate = (time: number) => {
       if (previousTimeRef.current !== undefined) {
         const deltaTime = time - previousTimeRef.current;
         
-        setCircles(prevCircles => 
-          prevCircles
-            .map(circle => ({
-              ...circle,
-              radius: circle.radius + deltaTime * 0.1,
-              opacity: Math.max(0, circle.opacity - deltaTime * 0.0005)
-            }))
-            .filter(circle => circle.opacity > 0)
-        );
+        // Update circles in ref without state update
+        circlesRef.current = circlesRef.current
+          .map(circle => ({
+            ...circle,
+            radius: circle.radius + deltaTime * 0.1,
+            opacity: Math.max(0, circle.opacity - deltaTime * 0.0005)
+          }))
+          .filter(circle => circle.opacity > 0);
+        
+        // Update state less frequently (every ~100ms) to avoid infinite rerenders
+        if (!requestRef.current || time % 6 === 0) {
+          setCircles([...circlesRef.current]);
+        }
       }
       
       previousTimeRef.current = time;
@@ -68,7 +77,7 @@ export function Highlighter({
         cancelAnimationFrame(requestRef.current);
       }
     };
-  }, []);
+  }, []); // Empty dependency array to run only once
 
   const handleMouseMove = (event: React.MouseEvent) => {
     if (!containerRef.current) return;
@@ -78,15 +87,18 @@ export function Highlighter({
     const y = event.clientY - rect.top;
     
     if (Math.random() < 0.1) { // Only create new circles 10% of the time
-      setCircles(prev => [
-        ...prev,
-        {
-          x,
-          y,
-          radius: 10,
-          opacity: 0.5
-        }
-      ].slice(-20)); // Keep only the last 20 circles
+      const newCircle = {
+        x,
+        y,
+        radius: 10,
+        opacity: 0.5
+      };
+      
+      // Update the ref directly for animation
+      circlesRef.current = [...circlesRef.current, newCircle].slice(-20);
+      
+      // Then update the state for rendering
+      setCircles(prevCircles => [...prevCircles, newCircle].slice(-20));
     }
   };
 
@@ -139,6 +151,7 @@ export function Particles({ className = '', color = 'rgba(255, 182, 71, 0.3)', q
   const requestRef = useRef<number | undefined>(undefined);
   const previousTimeRef = useRef<number | undefined>(undefined);
   const particlesRef = useRef<Circle[]>([]); // Add a ref to store current particles
+  const lastUpdateRef = useRef<number>(0); // Track last update time
 
   useEffect(() => {
     // Initialize particles
@@ -163,8 +176,10 @@ export function Particles({ className = '', color = 'rgba(255, 182, 71, 0.3)', q
           opacity: 0.2 + Math.sin(time * 0.001 + particle.x * 0.1) * 0.3,
         }));
         
-        // Only update state occasionally to avoid infinite loops
-        if (time % 6 === 0) { // Update roughly every 6 animation frames
+        // Only update state occasionally (roughly every 100ms)
+        const shouldUpdate = time - lastUpdateRef.current > 100;
+        if (shouldUpdate) {
+          lastUpdateRef.current = time;
           setParticles([...particlesRef.current]);
         }
       }

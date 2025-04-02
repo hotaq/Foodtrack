@@ -6,18 +6,23 @@ import { db } from "@/lib/db";
 // POST: Submit a snack image for a quest
 export async function POST(req: Request) {
   try {
+    console.log("Snack submission API called");
     const session = await getServerSession(authOptions);
     
     // Ensure user is authenticated
     if (!session || !session.user) {
+      console.log("Unauthorized snack submission attempt");
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
     
     // Parse request body
-    const { imageUrl, imageKey, questId } = await req.json();
+    const body = await req.json();
+    console.log("Snack submission request body:", body);
+    const { imageUrl, imageKey = "edgestore", questId } = body;
     
-    if (!imageUrl || !imageKey || !questId) {
-      return NextResponse.json({ message: "Missing required fields: imageUrl, imageKey, and questId are required" }, { status: 400 });
+    if (!imageUrl || !questId) {
+      console.log("Missing required fields:", { imageUrl, questId });
+      return NextResponse.json({ message: "Missing required fields: imageUrl and questId are required" }, { status: 400 });
     }
     
     // Check if the quest exists and is a snack quest
@@ -26,10 +31,14 @@ export async function POST(req: Request) {
     });
     
     if (!quest) {
+      console.log(`Quest not found with ID: ${questId}`);
       return NextResponse.json({ message: "Quest not found" }, { status: 404 });
     }
     
+    console.log("Found quest:", quest);
+    
     if (!quest.title.toLowerCase().includes("snack")) {
+      console.log(`Quest title doesn't include 'snack': ${quest.title}`);
       return NextResponse.json({ message: "This endpoint is only for snack-related quests" }, { status: 400 });
     }
     
@@ -43,6 +52,8 @@ export async function POST(req: Request) {
       }
     });
     
+    console.log("Existing user quest:", existingUserQuest);
+    
     // Create a meal record for the snack
     const snackMeal = await db.meal.create({
       data: {
@@ -55,21 +66,30 @@ export async function POST(req: Request) {
       }
     });
     
+    console.log("Created snack meal:", snackMeal);
+    
     let userQuest;
     let isNewlyCompleted = false;
     
     if (existingUserQuest) {
       // Update progress if user already has the quest
       const newProgress = Math.min(existingUserQuest.progress + 1, quest.requirement);
-      const isCompleted = newProgress >= quest.requirement && !existingUserQuest.isCompleted;
+      const isCompleted = newProgress >= quest.requirement;
       
       isNewlyCompleted = isCompleted && !existingUserQuest.isCompleted;
+      
+      console.log("Updating existing user quest:", {
+        newProgress,
+        isCompleted,
+        isNewlyCompleted,
+        requirement: quest.requirement
+      });
       
       userQuest = await db.userQuest.update({
         where: { id: existingUserQuest.id },
         data: {
           progress: newProgress,
-          isCompleted: isCompleted || existingUserQuest.isCompleted,
+          isCompleted: isCompleted,
           completedAt: isCompleted && !existingUserQuest.isCompleted ? new Date() : existingUserQuest.completedAt,
         }
       });
@@ -78,6 +98,13 @@ export async function POST(req: Request) {
       const progress = 1;
       const isCompleted = progress >= quest.requirement;
       isNewlyCompleted = isCompleted;
+      
+      console.log("Creating new user quest:", {
+        progress,
+        isCompleted,
+        isNewlyCompleted,
+        requirement: quest.requirement
+      });
       
       userQuest = await db.userQuest.create({
         data: {
@@ -90,10 +117,13 @@ export async function POST(req: Request) {
       });
     }
     
+    console.log("User quest after update:", userQuest);
+    
     // Award points if quest is newly completed
     let scoreAwarded = 0;
     
     if (isNewlyCompleted) {
+      console.log("Quest newly completed! Awarding points...");
       // Get or create user score record
       let userScore = await db.score.findUnique({
         where: { userId: session.user.id }
@@ -128,16 +158,20 @@ export async function POST(req: Request) {
       });
       
       scoreAwarded = quest.scoreReward;
+      console.log(`Awarded ${scoreAwarded} points for completing quest`);
     }
     
-    return NextResponse.json({
+    const response = {
       message: "Snack submission successful",
       mealId: snackMeal.id,
       progress: userQuest.progress,
       requirement: quest.requirement,
       isCompleted: userQuest.isCompleted,
       scoreAwarded,
-    });
+    };
+    
+    console.log("Snack submission response:", response);
+    return NextResponse.json(response);
     
   } catch (error) {
     console.error("Error submitting snack:", error);

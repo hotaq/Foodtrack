@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; 
+import { Input } from "@/components/ui/input";
 import { BentoCard } from "@/components/ui/bento-card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -63,10 +63,10 @@ interface AdminQuestPageProps {
   completedQuestsCount: number;
 }
 
-export default function AdminQuestPage({
-  quests,
-  activeQuestsCount,
-  totalUserQuestsCount,
+export default function AdminQuestPage({ 
+  quests, 
+  activeQuestsCount, 
+  totalUserQuestsCount, 
   completedQuestsCount,
 }: AdminQuestPageProps) {
   // State management
@@ -188,7 +188,7 @@ export default function AdminQuestPage({
         // Create new quest
         const response = await fetch('/api/admin/quests', {
           method: 'POST',
-          headers: {
+        headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(questData),
@@ -197,8 +197,8 @@ export default function AdminQuestPage({
         
         const responseData = await response.text();
         console.log(`Create Response: ${response.status}`, responseData);
-        
-        if (!response.ok) {
+      
+      if (!response.ok) {
           throw new Error(responseData || `Failed to create quest`);
         }
         
@@ -233,8 +233,8 @@ export default function AdminQuestPage({
         
         const responseData = await response.text();
         console.log(`Update Response: ${response.status}`, responseData);
-        
-        if (!response.ok) {
+      
+      if (!response.ok) {
           throw new Error(responseData || `Failed to update quest`);
         }
         
@@ -429,11 +429,11 @@ export default function AdminQuestPage({
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-[700px]">
-          <DialogHeader>
+              <DialogHeader>
             <DialogTitle>{currentQuest ? "Edit Quest" : "Create New Quest"}</DialogTitle>
-            <DialogDescription>
+                <DialogDescription>
               {currentQuest ? "Update quest details" : "Add a new quest for users to complete."}
-            </DialogDescription>
+                </DialogDescription>
             <Alert className="mt-2">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Automatic Activation</AlertTitle>
@@ -442,14 +442,14 @@ export default function AdminQuestPage({
                 You can set quests as inactive and schedule their activation for a future date.
               </AlertDescription>
             </Alert>
-          </DialogHeader>
-          
+              </DialogHeader>
+              
           <form onSubmit={handleQuestSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Quest Title</Label>
-                <Input 
-                  id="title" 
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="title">Quest Title</Label>
+                  <Input 
+                    id="title" 
                   placeholder="Enter quest title..." 
                   defaultValue={currentQuest?.title || ""} 
                   required
@@ -580,10 +580,10 @@ export default function AdminQuestPage({
                 <div className="text-xs text-muted-foreground mt-1">
                   Controls how often the same user can complete this quest
                 </div>
+                </div>
               </div>
-            </div>
-            
-            <DialogFooter>
+              
+              <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} suppressHydrationWarning>
                 Cancel
               </Button>
@@ -596,12 +596,12 @@ export default function AdminQuestPage({
                 ) : (
                   isEditMode ? "Save Changes" : "Create Quest"
                 )}
-              </Button>
-            </DialogFooter>
+                </Button>
+              </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-    </div>
+            </DialogContent>
+          </Dialog>
+        </div>
   );
 }
 
@@ -642,12 +642,12 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
       </div>
     );
   }
-  
+      
   return (
-    <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
       <table className="w-full" suppressHydrationWarning>
-        <thead>
-          <tr className="border-b">
+            <thead>
+              <tr className="border-b">
             <th className="text-left p-4 font-medium">Quest</th>
             <th className="text-left p-4 font-medium">Type</th>
             <th className="text-center p-4 font-medium">Reward</th>
@@ -656,9 +656,9 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
             <th className="text-center p-4 font-medium">Time Limit</th>
             <th className="text-center p-4 font-medium">Frequency</th>
             <th className="text-right p-4 font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+              </tr>
+            </thead>
+            <tbody>
           {validQuests.map((quest) => (
             <tr key={quest.id} className="border-b hover:bg-muted/50 transition-colors">
               <td className="p-4">
@@ -676,14 +676,14 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
                       <Users className="h-5 w-5 text-blue-500" />
                     )}
                   </div>
-                  <div>
+                      <div>
                     <div className="font-medium">{quest.title}</div>
                     <div className="text-sm text-muted-foreground line-clamp-1">
-                      {quest.description}
+                          {quest.description}
                     </div>
                   </div>
-                </div>
-              </td>
+                      </div>
+                    </td>
               <td className="p-4">
                 <Badge variant="outline">
                   {quest.type.replace('_', ' ')}
@@ -692,10 +692,10 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
               <td className="p-4 text-center">
                 <span className="font-medium">{quest.scoreReward}</span>
                 <span className="text-muted-foreground"> pts</span>
-              </td>
+                    </td>
               <td className="p-4 text-center">
                 {quest._count && quest._count.userQuests !== undefined ? quest._count.userQuests : 0}
-              </td>
+                    </td>
               <td className="p-4 text-center">
                 {quest.isActive ? (
                   <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
@@ -706,7 +706,7 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
                     Inactive
                   </Badge>
                 )}
-              </td>
+                    </td>
               <td className="p-4 text-center">
                 {quest.startDate || quest.endDate ? (
                   <div className="text-xs">
@@ -720,7 +720,7 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
                 ) : (
                   <span className="text-xs text-muted-foreground">No time limit</span>
                 )}
-              </td>
+                    </td>
               <td className="p-4 text-center">
                 {quest.frequency === "ONCE" && (
                   <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
@@ -737,10 +737,10 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
                     Unlimited
                   </Badge>
                 )}
-              </td>
+                    </td>
               <td className="p-4 text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <Button
+                        <Button 
                     variant="ghost"
                     size="icon"
                     onClick={() => handleQuestAction(quest)}
@@ -748,21 +748,21 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
                   >
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Edit</span>
-                  </Button>
-                  <Button
+                        </Button>
+                        <Button 
                     variant="ghost"
                     size="icon"
                     suppressHydrationWarning
                   >
                     <Copy className="h-4 w-4" />
                     <span className="sr-only">Duplicate</span>
-                  </Button>
-                </div>
-              </td>
-            </tr>
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
           ))}
-        </tbody>
-      </table>
+            </tbody>
+          </table>
     </div>
   );
 } 
