@@ -147,6 +147,8 @@ export default function SnackQuestUploader() {
         },
       });
       
+      console.log("EdgeStore upload response:", res);
+      
       // Submit the snack quest with the image URL
       const response = await fetch('/api/quests/submit-snack', {
         method: 'POST',
@@ -160,16 +162,19 @@ export default function SnackQuestUploader() {
         }),
       });
       
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to submit snack');
+        const errorText = await response.text();
+        console.error("Snack submission error:", response.status, errorText);
+        throw new Error(errorText || 'Failed to submit snack');
       }
+      
+      const data = await response.json();
+      console.log("Snack submission success:", data);
       
       // Show success message
       toast({
         title: 'Snack uploaded successfully! 🎉',
-        description: `You've earned ${snackQuests[0]?.scoreReward || 0} points!`,
+        description: `You've earned ${data.scoreAwarded || 0} points!`,
       });
       
       // Clear file and refresh quests

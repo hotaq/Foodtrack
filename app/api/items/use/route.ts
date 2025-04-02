@@ -40,9 +40,12 @@ export async function POST(req: Request) {
     
     // Check cooldown period if applicable
     if (userItem.lastUsed && userItem.item.cooldown) {
-      const cooldownEnds = new Date(userItem.lastUsed);
-      // Convert hours to milliseconds (cooldown is stored in hours)
-      cooldownEnds.setHours(cooldownEnds.getHours() + userItem.item.cooldown);
+      const lastUsedDate = new Date(userItem.lastUsed);
+      // Convert to milliseconds for accurate cooldown calculation
+      const cooldownMs = userItem.item.cooldown * 1000; 
+      const currentTime = new Date().getTime();
+      const elapsedMs = currentTime - lastUsedDate.getTime();
+      const remainingMs = Math.max(0, cooldownMs - elapsedMs);
       
       // Check if the user is an admin
       const user = await db.user.findUnique({
@@ -52,10 +55,20 @@ export async function POST(req: Request) {
       const isAdmin = user && user.role === "ADMIN";
       
       // Allow admins to bypass cooldown
-      if (!isAdmin && cooldownEnds > new Date()) {
-        const timeRemaining = Math.ceil((cooldownEnds.getTime() - new Date().getTime()) / (1000 * 60));
+      if (!isAdmin && remainingMs > 0) {
+        const minutes = Math.floor(remainingMs / 60000);
+        const seconds = Math.floor((remainingMs % 60000) / 1000);
+        const timeDisplay = `${minutes}m ${seconds}s`;
+        
+        console.log(`Item ${userItem.item.name} is on cooldown. Remaining: ${timeDisplay}`);
+        
         return NextResponse.json({ 
-          message: `This item is on cooldown. Try again in ${timeRemaining} minute(s)` 
+          message: `This item is on cooldown. Please wait ${timeDisplay} before using it again.`,
+          remainingTime: {
+            ms: remainingMs,
+            minutes,
+            seconds
+          }
         }, { status: 400 });
       }
     }
@@ -65,9 +78,6 @@ export async function POST(req: Request) {
     let effectResult = null;
     
     // Get user's score
-    const userScore = await (db as any).score.findUnique({
-      where: { userId }
-    });
     
     if (userItem.item.type === "CONSUMABLE") {
       // Handle consumable items with different effects
@@ -137,6 +147,15 @@ export async function POST(req: Request) {
             }, { status: 404 });
           }
           
+          // Check if the attacking user has ATTACK_BOOST active
+          const attackerBoost = await (db as any).activeEffect.findFirst({
+            where: {
+              userId: userId,
+              type: "ATTACK_BOOST",
+              expiresAt: { gt: new Date() }
+            }
+          });
+          
           // Check if target user has streak protection active
           const activeProtection = await (db as any).activeEffect.findFirst({
             where: {
@@ -146,12 +165,21 @@ export async function POST(req: Request) {
             }
           });
           
-          if (activeProtection) {
+          // If the target has protection but the attacker has a Power Sword,
+          // the protection is bypassed
+          const protectionBypassed = activeProtection && attackerBoost;
+          
+          if (activeProtection && !protectionBypassed) {
+            // Protection works - attack is blocked
             effectMessage = "Attack failed! Target user has an active Shield of Protection.";
             effectResult = "ATTACK_BLOCKED";
-          } else if (targetUser.streak && targetUser.streak.currentStreak > 0) {
-            // For Magic Wand, decrease by a random amount between 1-3
-            const decreaseAmount = Math.floor(Math.random() * 3) + 1;
+          } else if (protectionBypassed) {
+            // Power Sword broke through the shield!
+            console.log("Power Sword bypassed Shield of Protection!");
+            
+            // For Magic Wand with Power Sword boost, decrease by a larger amount (2-5)
+            const basePower = attackerBoost ? 2 : 1;
+            const decreaseAmount = Math.floor(Math.random() * 3) + basePower; // 2-4 or 1-3
             const newStreak = Math.max(0, targetUser.streak.currentStreak - decreaseAmount);
             
             // Update the target user's streak
@@ -162,7 +190,25 @@ export async function POST(req: Request) {
               }
             });
             
-            effectMessage = `Attack successful! You decreased ${targetUser.name}'s streak by ${decreaseAmount} points!`;
+            effectMessage = `Power Sword broke through the Shield of Protection! You decreased ${targetUser.name}'s streak by ${decreaseAmount} points!`;
+            effectResult = "PROTECTION_BYPASSED_STREAK_DECREASED";
+          } else if (targetUser.streak && targetUser.streak.currentStreak > 0) {
+            // No protection - normal attack
+            // Calculate decrease amount: enhanced if attacker has Power Sword
+            const basePower = attackerBoost ? 2 : 1;
+            const decreaseAmount = Math.floor(Math.random() * 3) + basePower; // 2-4 or 1-3
+            const newStreak = Math.max(0, targetUser.streak.currentStreak - decreaseAmount);
+            
+            // Update the target user's streak
+            await (db as any).streak.update({
+              where: { userId: targetUserId },
+              data: {
+                currentStreak: newStreak
+              }
+            });
+            
+            const attackTypeMsg = attackerBoost ? "Power Sword enhanced attack" : "attack";
+            effectMessage = `${attackTypeMsg} successful! You decreased ${targetUser.name}'s streak by ${decreaseAmount} points!`;
             effectResult = "STREAK_DECREASED";
           } else {
             effectMessage = "Attack had no effect. Target user has no active streak.";
@@ -279,15 +325,39 @@ export async function POST(req: Request) {
     // Update userItem (decrease quantity and set lastUsed)
     // Make sure we don't go below 0
     const updatedQuantity = Math.max(0, userItem.quantity - 1);
+    
+    // Update the userItem with current timestamp for lastUsed
+    const currentTime = new Date();
+    
+    // Extra debug logs for STREAK_DECREASE items
+    if (userItem.item.effect === "STREAK_DECREASE") {
+      console.log(`[Magic Wand Debug] Setting lastUsed for ${userItem.id}:`);
+      console.log(`- Current time: ${currentTime.toISOString()}`);
+      console.log(`- Previous lastUsed: ${userItem.lastUsed ? new Date(userItem.lastUsed).toISOString() : 'null'}`);
+      console.log(`- Cooldown period: ${userItem.item.cooldown || 0} seconds`);
+    }
+    
     await (db as any).userItem.update({
       where: {
         id: userItem.id
       },
       data: {
         quantity: updatedQuantity,
-        lastUsed: new Date()
+        lastUsed: currentTime
       }
     });
+    
+    // Double-check the lastUsed was set properly for STREAK_DECREASE items
+    if (userItem.item.effect === "STREAK_DECREASE") {
+      const updatedItem = await (db as any).userItem.findUnique({
+        where: { id: userItem.id },
+        select: { lastUsed: true }
+      });
+      
+      console.log(`[Magic Wand Debug] Verified lastUsed after update: ${updatedItem.lastUsed ? new Date(updatedItem.lastUsed).toISOString() : 'null'}`);
+    }
+    
+    console.log(`Item used at ${currentTime.toISOString()}, cooldown period: ${userItem.item.cooldown || 0} seconds`);
     
     // Log the item use with correct fields from the schema
     await (db as any).itemUseLog.create({
@@ -295,7 +365,8 @@ export async function POST(req: Request) {
         userId: session.user.id,
         itemId: itemId,
         targetUserId: targetUserId || null,
-        effect: effectResult // Use the string effect result
+        effect: effectResult, // Use the string effect result
+        createdAt: currentTime // Ensure the timestamp matches the lastUsed
       }
     });
     

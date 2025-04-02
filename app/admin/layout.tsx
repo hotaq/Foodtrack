@@ -12,8 +12,7 @@ import {
   PieChart, 
   ShoppingBag, 
   Trophy,
-  Home,
-  Clock
+  Home
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -58,11 +57,6 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       title: "Settings",
       href: "/admin/settings",
       icon: <Settings className="h-5 w-5" />,
-    },
-    {
-      title: "Meal Time Settings",
-      href: "/admin/meal-time-settings",
-      icon: <Clock className="h-5 w-5" />,
     },
   ];
 

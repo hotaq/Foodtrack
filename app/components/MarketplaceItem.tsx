@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,10 +57,20 @@ export function MarketplaceItem({
     if (!lastUsed || !cooldown) return false;
     
     const lastUsedDate = new Date(lastUsed);
-    const cooldownTime = cooldown * 1000; // Convert seconds to milliseconds
+    const cooldownTimeMs = cooldown * 1000; // Convert seconds to milliseconds
     const currentTime = new Date().getTime();
+    const elapsedTime = currentTime - lastUsedDate.getTime();
     
-    return (currentTime - lastUsedDate.getTime()) < cooldownTime;
+    // Debug cooldown calculation
+    console.log(`[${name}] Cooldown check:`);
+    console.log(`- Last used: ${lastUsedDate.toISOString()}`);
+    console.log(`- Cooldown: ${cooldown} seconds (${cooldownTimeMs}ms)`);
+    console.log(`- Current time: ${new Date().toISOString()}`);
+    console.log(`- Elapsed time: ${elapsedTime}ms (${Math.floor(elapsedTime/1000)}s)`);
+    console.log(`- Is on cooldown: ${elapsedTime < cooldownTimeMs}`);
+    
+    // If elapsed time is less than cooldown time, item is still on cooldown
+    return elapsedTime < cooldownTimeMs;
   };
 
   // Calculate remaining cooldown time
@@ -68,12 +78,12 @@ export function MarketplaceItem({
     if (!lastUsed || !cooldown) return null;
     
     const lastUsedDate = new Date(lastUsed);
-    const cooldownTime = cooldown * 1000; // Convert seconds to milliseconds
+    const cooldownTimeMs = cooldown * 1000; // Convert seconds to milliseconds
     const currentTime = new Date().getTime();
     const elapsedTime = currentTime - lastUsedDate.getTime();
     
-    if (elapsedTime < cooldownTime) {
-      const remainingTime = cooldownTime - elapsedTime;
+    if (elapsedTime < cooldownTimeMs) {
+      const remainingTime = cooldownTimeMs - elapsedTime;
       const minutes = Math.floor(remainingTime / 60000);
       const seconds = Math.floor((remainingTime % 60000) / 1000);
       
@@ -102,6 +112,17 @@ export function MarketplaceItem({
 
   // Handle use
   const handleUse = async () => {
+    // Check if item is on cooldown before attempting to use it
+    if (isOnCooldown()) {
+      const cooldownText = getRemainingCooldown();
+      toast({
+        title: "Item on Cooldown",
+        description: `This item cannot be used yet. Please wait ${cooldownText} before using it again.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setIsUsing(true);
       await onUse(id);
@@ -129,6 +150,26 @@ export function MarketplaceItem({
       word.charAt(0) + word.slice(1).toLowerCase()
     ).join(' ');
   };
+
+  // Debug cooldown info when component renders
+  useEffect(() => {
+    if (lastUsed && cooldown && effect === "STREAK_DECREASE") {
+      const lastUsedDate = new Date(lastUsed);
+      const cooldownTimeMs = cooldown * 1000;
+      const currentTime = new Date().getTime();
+      const elapsedTime = currentTime - lastUsedDate.getTime();
+      const remainingTime = cooldownTimeMs - elapsedTime;
+      
+      console.log(`[COOLDOWN DEBUG] ${name} (${effect}):`);
+      console.log(`- Last used: ${lastUsedDate.toISOString()}`);
+      console.log(`- Cooldown setting: ${cooldown} seconds`);
+      console.log(`- Current time: ${new Date().toISOString()}`);
+      console.log(`- Elapsed time: ${Math.round(elapsedTime/1000)}s / ${cooldown}s`);
+      console.log(`- Remaining time: ${Math.max(0, Math.round(remainingTime/1000))}s`);
+      console.log(`- Should be on cooldown: ${elapsedTime < cooldownTimeMs}`);
+      console.log(`- Component reports on cooldown: ${isOnCooldown()}`);
+    }
+  }, [lastUsed, cooldown, name, effect, isOnCooldown]);
 
   const cooldownRemaining = getRemainingCooldown();
   const onCooldown = isOnCooldown();
@@ -202,7 +243,7 @@ export function MarketplaceItem({
             ) : onCooldown ? (
               <div className="flex items-center space-x-1">
                 <Clock className="h-4 w-4 mr-1" />
-                <span>{cooldownRemaining} {isAdmin && "(Admin bypasses cooldown)"}</span>
+                <span className="text-xs whitespace-nowrap">Cooldown: {cooldownRemaining}</span>
               </div>
             ) : quantity <= 0 ? (
               "Out of Stock"

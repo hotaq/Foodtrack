@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { signOut } from 'next-auth/react';
@@ -14,7 +14,7 @@ interface Streak {
     id: string;
     name: string | null;
     image: string | null;
-    createdAt: Date;
+    createdAt: string;
     role: string;
   };
 }
@@ -37,6 +37,12 @@ export default function LeaderboardClient({
   isLoggedIn 
 }: LeaderboardClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [mounted, setMounted] = useState(false);
+  
+  // Wait for client-side rendering to complete before rendering interactive elements
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   // Filter streaks based on search term
   const filteredStreaks = topStreaks.filter(streak => 
@@ -56,6 +62,20 @@ export default function LeaderboardClient({
         return <span className="text-gray-400 font-bold w-6 text-center">{index + 1}</span>;
     }
   };
+  
+  // Format date safely
+  const formatDate = (dateString: string) => {
+    try {
+      return new Date(dateString).toLocaleDateString();
+    } catch (error) {
+      return "Unknown";
+    }
+  };
+
+  // Handle sign out with client-side only function
+  const handleSignOut = () => {
+    signOut({ redirect: true, callbackUrl: '/' });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,17 +87,15 @@ export default function LeaderboardClient({
               <Link href="/dashboard" className="vintage-button bg-primary text-sm py-2 px-4">
                 Dashboard
               </Link>
-              {isLoggedIn && currentUserRank && (
+              {mounted && isLoggedIn && currentUserRank && (
                 <div className="flex items-center bg-card px-4 py-2 rounded-lg vintage-border">
                   <Award className="text-primary mr-2" size={18} />
                   <span className="text-sm">Your Rank: <span className="font-bold">{currentUserRank.rank}</span></span>
                 </div>
               )}
-              {isLoggedIn && (
+              {mounted && isLoggedIn && (
                 <button
-                  onClick={() => {
-                    signOut({ redirect: true, callbackUrl: '/' });
-                  }}
+                  onClick={handleSignOut}
                   className="vintage-button bg-secondary text-sm py-2 px-4"
                 >
                   Sign Out
@@ -92,16 +110,18 @@ export default function LeaderboardClient({
         <div className="bg-card p-6 rounded-lg vintage-border mb-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold vintage-text">Top Streakers</h2>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+            {mounted && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 bg-background border border-input rounded-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            )}
           </div>
           
           <div className="overflow-x-auto">
@@ -167,7 +187,7 @@ export default function LeaderboardClient({
                       <span className="text-xs ml-1">days</span>
                     </td>
                     <td className="py-3 px-4 text-right text-sm">
-                      {new Date(streak.user.createdAt).toLocaleDateString()}
+                      {formatDate(streak.user.createdAt)}
                     </td>
                   </tr>
                 ))}

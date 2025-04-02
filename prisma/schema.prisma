@@ -132,6 +132,7 @@ enum MealType {
   BREAKFAST
   LUNCH
   DINNER
+  SNACK
 }
 
 model MealTimeSettings {

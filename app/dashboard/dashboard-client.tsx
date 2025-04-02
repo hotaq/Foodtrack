@@ -738,7 +738,8 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           {/* Breakfast */}
           <MotionDiv variants={scaleIn} className="bg-card rounded-lg overflow-hidden vintage-border">
             <h3 className="text-xl font-bold p-4 vintage-text bg-card">Breakfast</h3>
-            {todaysMeals.BREAKFAST ? (
+            
+            {todaysMeals.BREAKFAST && todaysMeals.BREAKFAST.imageUrl && todaysMeals.BREAKFAST.foodName !== "Snack" ? (
               <div className="relative h-64 w-full overflow-hidden">
                 <Image
                   src={todaysMeals.BREAKFAST.imageUrl}
@@ -787,7 +788,8 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           {/* Lunch */}
           <MotionDiv variants={scaleIn} className="bg-card rounded-lg overflow-hidden vintage-border">
             <h3 className="text-xl font-bold p-4 vintage-text bg-card">Lunch</h3>
-            {todaysMeals.LUNCH ? (
+            
+            {todaysMeals.LUNCH && todaysMeals.LUNCH.imageUrl && todaysMeals.LUNCH.foodName !== "Snack" ? (
               <div className="relative h-64 w-full overflow-hidden">
                 <Image
                   src={todaysMeals.LUNCH.imageUrl}
@@ -836,7 +838,8 @@ export default function DashboardClient({ user, streak, todaysMeals }: Dashboard
           {/* Dinner */}
           <MotionDiv variants={scaleIn} className="bg-card rounded-lg overflow-hidden vintage-border">
             <h3 className="text-xl font-bold p-4 vintage-text bg-card">Dinner</h3>
-            {todaysMeals.DINNER ? (
+            
+            {todaysMeals.DINNER && todaysMeals.DINNER.imageUrl && todaysMeals.DINNER.foodName !== "Snack" ? (
               <div className="relative h-64 w-full overflow-hidden">
                 <Image
                   src={todaysMeals.DINNER.imageUrl}

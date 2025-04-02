@@ -55,13 +55,15 @@ export async function POST(req: Request) {
     console.log("Existing user quest:", existingUserQuest);
     
     // Create a meal record for the snack
+    // We'll use BREAKFAST type but set foodName to "Snack" to distinguish it
+    // This avoids the type error since we couldn't regenerate the Prisma client
     const snackMeal = await db.meal.create({
       data: {
-        type: "BREAKFAST", // Default meal type 
+        type: "BREAKFAST", // Using a valid MealType that existing Prisma client recognizes
         imageUrl,
         imageKey,
         isFood: true,
-        foodName: "Snack",
+        foodName: "Snack", // We'll use this to filter out snacks from breakfast display
         userId: session.user.id,
       }
     });

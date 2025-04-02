@@ -5,7 +5,6 @@ import {
   Award, 
   Check, 
   ChevronDown, 
-  Copy, 
   Edit, 
   Filter, 
   Flame, 
@@ -86,6 +85,9 @@ export default function AdminQuestPage({
     currentQuest?.endDate ? new Date(currentQuest.endDate).toISOString().slice(0, 16) : ""
   );
   const [frequency, setFrequency] = useState<string>(currentQuest?.frequency || "UNLIMITED");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [questToDelete, setQuestToDelete] = useState<string | null>(null);
+  const [isCreatingSnackQuest, setIsCreatingSnackQuest] = useState(false);
 
   // Add a ref to store the selected frequency value
   const frequencyRef = useRef<string>(currentQuest?.frequency || "UNLIMITED");
@@ -148,6 +150,97 @@ export default function AdminQuestPage({
       setIsQuestActive(true);
     }
     setIsDialogOpen(true);
+  };
+
+  // Handle delete quest
+  const handleDeleteQuest = async (questId: string) => {
+    if (!questId) return;
+    
+    setQuestToDelete(questId);
+    setIsDeleting(true);
+    
+    try {
+      const response = await fetch(`/api/admin/quests?id=${questId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to delete quest');
+      }
+      
+      // Update local state to remove the deleted quest
+      setFilteredQuests(prevQuests => prevQuests.filter(q => q.id !== questId));
+      
+      // Update original quests array
+      const questIndex = quests.findIndex(q => q.id === questId);
+      if (questIndex !== -1) {
+        quests.splice(questIndex, 1);
+      }
+      
+      toast({
+        title: "Success",
+        description: "Quest deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting quest:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete quest",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setQuestToDelete(null);
+    }
+  };
+
+  // Create snack quest
+  const handleCreateSnackQuest = async () => {
+    setIsCreatingSnackQuest(true);
+    
+    try {
+      const response = await fetch('/api/admin/quests/add-snack-quest', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          scoreReward: 10,
+          requirement: 1,
+          isActive: true
+        }),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to create Snack Time quest');
+      }
+      
+      const data = await response.json();
+      
+      // Add the new quest to our list
+      if (data.quest) {
+        setFilteredQuests(prev => [data.quest, ...prev]);
+        quests.unshift(data.quest);
+      }
+      
+      toast({
+        title: "Success",
+        description: "Snack Time quest created successfully",
+      });
+    } catch (error) {
+      console.error('Error creating Snack Time quest:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create Snack Time quest",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingSnackQuest(false);
+    }
   };
 
   // Calculate completion rate
@@ -323,38 +416,46 @@ export default function AdminQuestPage({
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="relative w-full sm:w-auto max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="pl-9 pr-4 w-full"
-            placeholder="Search quests..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            suppressHydrationWarning
-          />
-        </div>
-        
-        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 md:items-center">
+          <div className="relative flex-1 min-w-[300px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search quests..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          
+          <div className="flex items-center">
             <Switch
               id="active-filter"
               checked={showOnlyActive}
               onCheckedChange={setShowOnlyActive}
-              suppressHydrationWarning
+              className="mr-2"
             />
-            <Label htmlFor="active-filter" className="cursor-pointer">
-              Active Only
-            </Label>
+            <Label htmlFor="active-filter">Show active only</Label>
           </div>
-          
-          <Button 
-            onClick={() => handleQuestAction()}
-            className="gap-1.5"
-            suppressHydrationWarning
-          >
-            <Plus className="h-4 w-4" />
-            New Quest
+        </div>
+        
+        <div className="flex gap-2">
+          <Button onClick={handleCreateSnackQuest} disabled={isCreatingSnackQuest} className="bg-amber-500 hover:bg-amber-600">
+            {isCreatingSnackQuest ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Trophy className="mr-2 h-4 w-4" />
+                Add Snack Quest
+              </>
+            )}
+          </Button>
+          <Button onClick={() => handleQuestAction()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Quest
           </Button>
         </div>
       </div>
@@ -404,6 +505,9 @@ export default function AdminQuestPage({
             <QuestTable 
               quests={filteredQuests} 
               handleQuestAction={handleQuestAction} 
+              handleDeleteQuest={handleDeleteQuest}
+              isDeleting={isDeleting}
+              questToDelete={questToDelete}
               searchTerm={searchTerm}
             />
           </TabsContent>
@@ -412,6 +516,9 @@ export default function AdminQuestPage({
             <QuestTable 
               quests={filteredQuests} 
               handleQuestAction={handleQuestAction} 
+              handleDeleteQuest={handleDeleteQuest}
+              isDeleting={isDeleting}
+              questToDelete={questToDelete}
               searchTerm={searchTerm}
             />
           </TabsContent>
@@ -420,6 +527,9 @@ export default function AdminQuestPage({
             <QuestTable 
               quests={filteredQuests} 
               handleQuestAction={handleQuestAction} 
+              handleDeleteQuest={handleDeleteQuest}
+              isDeleting={isDeleting}
+              questToDelete={questToDelete}
               searchTerm={searchTerm}
             />
           </TabsContent>
@@ -609,10 +719,13 @@ export default function AdminQuestPage({
 interface QuestTableProps {
   quests: QuestType[];
   handleQuestAction: (quest?: QuestType) => void;
+  handleDeleteQuest: (questId: string) => void;
+  isDeleting: boolean;
+  questToDelete: string | null;
   searchTerm: string;
 }
 
-function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) {
+function QuestTable({ quests, handleQuestAction, handleDeleteQuest, isDeleting, questToDelete, searchTerm }: QuestTableProps) {
   // Add validation for quests data
   const validQuests = quests.filter(quest => quest && typeof quest === 'object');
   
@@ -752,10 +865,30 @@ function QuestTable({ quests, handleQuestAction, searchTerm }: QuestTableProps) 
                         <Button 
                     variant="ghost"
                     size="icon"
+                    className="text-red-500 hover:text-red-700"
+                          onClick={() => handleDeleteQuest(quest.id)}
+                    disabled={isDeleting && questToDelete === quest.id}
                     suppressHydrationWarning
                   >
-                    <Copy className="h-4 w-4" />
-                    <span className="sr-only">Duplicate</span>
+                    {isDeleting && questToDelete === quest.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-4 w-4" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth={2} 
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                        />
+                      </svg>
+                    )}
+                    <span className="sr-only">Delete</span>
                         </Button>
                       </div>
                     </td>

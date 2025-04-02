@@ -40,7 +40,14 @@ import {
   Calendar,
   User as UserIcon,
   Key,
-  Coins
+  Coins,
+  Clock,
+  Zap,
+  XCircle,
+  Sword,
+  Package,
+  Trash2,
+  TimerReset
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -61,6 +68,50 @@ interface User {
 
 interface UserDetails extends User {
   score: number;
+  isBanned?: boolean;
+}
+
+interface ActiveEffect {
+  id: string;
+  userId: string;
+  itemId: string;
+  type: string;
+  multiplier?: number;
+  timeExtension?: number;
+  expiresAt: Date;
+  createdAt: Date;
+  isActive: boolean;
+  item?: {
+    name: string;
+    imageUrl: string | null;
+    type: string;
+  };
+}
+
+interface UserItem {
+  id: string;
+  userId: string;
+  itemId: string;
+  quantity: number;
+  lastUsed: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  item: {
+    id: string;
+    name: string;
+    description: string;
+    imageUrl: string | null;
+    price: number;
+    type: string;
+    effect: string;
+    duration: number | null;
+    cooldown: number | null;
+  };
+  cooldownStatus?: {
+    isOnCooldown: boolean;
+    endsAt: Date;
+    timeRemaining: number;
+  } | null;
 }
 
 interface AdminUsersPageProps {
@@ -88,6 +139,11 @@ export default function AdminUsersPage({ users }: AdminUsersPageProps) {
     status: "",
     role: ""
   });
+  const [userActiveEffects, setUserActiveEffects] = useState<ActiveEffect[]>([]);
+  const [userItems, setUserItems] = useState<UserItem[]>([]);
+  const [isLoadingEffects, setIsLoadingEffects] = useState(false);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [activeTab, setActiveTab] = useState<"profile" | "effects" | "items">("profile");
 
   // Handle hydration by waiting for client-side rendering
   useEffect(() => {
@@ -173,9 +229,39 @@ export default function AdminUsersPage({ users }: AdminUsersPageProps) {
   const handleViewUser = async (user: User) => {
     setSelectedUser(user);
     setViewDialogOpen(true);
-    const details = await fetchUserDetails(user.id);
-    if (details) {
-      setUserDetails(details);
+    setIsLoadingEffects(true);
+    setIsLoadingItems(true);
+    setActiveTab("profile");
+    
+    try {
+      // Fetch user details
+      const details = await fetchUserDetails(user.id);
+      if (details) {
+        setUserDetails(details);
+      }
+      
+      // Fetch active effects
+      const effectsResponse = await fetch(`/api/admin/users/${user.id}/active-effects`);
+      if (effectsResponse.ok) {
+        const effectsData = await effectsResponse.json();
+        setUserActiveEffects(effectsData);
+      } else {
+        toast.error("Failed to fetch user's active effects");
+      }
+      
+      // Fetch user items
+      const itemsResponse = await fetch(`/api/admin/users/${user.id}/items`);
+      if (itemsResponse.ok) {
+        const itemsData = await itemsResponse.json();
+        setUserItems(itemsData);
+      } else {
+        toast.error("Failed to fetch user's items");
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    } finally {
+      setIsLoadingEffects(false);
+      setIsLoadingItems(false);
     }
   };
 
@@ -297,6 +383,429 @@ export default function AdminUsersPage({ users }: AdminUsersPageProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDeleteEffect = async (effectId: string) => {
+    if (!selectedUser) return;
+    
+    if (!window.confirm("Are you sure you want to delete this effect? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/active-effects?effectId=${effectId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Remove the deleted effect from state
+        setUserActiveEffects(prevEffects => 
+          prevEffects.filter(effect => effect.id !== effectId)
+        );
+        toast.success("Active effect deleted successfully");
+      } else {
+        const errorData = await response.json();
+        toast.error(`Failed to delete effect: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error deleting active effect:", error);
+      toast.error("Error deleting active effect");
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!selectedUser) return;
+    
+    if (!window.confirm("Are you sure you want to delete this item from the user's inventory? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/items?itemId=${itemId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        // Remove the deleted item from state
+        setUserItems(prevItems => 
+          prevItems.filter(item => item.id !== itemId)
+        );
+        toast.success("Item deleted successfully");
+      } else {
+        const errorData = await response.json();
+        toast.error(`Failed to delete item: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      toast.error("Error deleting item");
+    }
+  };
+  
+  const handleClearCooldown = async (itemId: string) => {
+    if (!selectedUser) return;
+    
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/items/clear-cooldown?itemId=${itemId}`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        // Update the item in state to clear cooldown
+        setUserItems(prevItems => 
+          prevItems.map(item => 
+            item.id === itemId 
+              ? { ...item, lastUsed: null, cooldownStatus: null }
+              : item
+          )
+        );
+        toast.success("Item cooldown cleared successfully");
+      } else {
+        const errorData = await response.json();
+        toast.error(`Failed to clear cooldown: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error clearing cooldown:", error);
+      toast.error("Error clearing cooldown");
+    }
+  };
+
+  // View User Dialog
+  const ViewUserDialog = () => {
+    if (!viewDialogOpen || !selectedUser) return null;
+
+    return (
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl">User Profile</DialogTitle>
+            <DialogDescription>
+              Viewing detailed information for user {selectedUser.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {isLoading && <div className="flex justify-center my-8"><div className="animate-spin h-8 w-8 border-t-2 border-b-2 border-gray-900 rounded-full"></div></div>}
+          
+          {!isLoading && userDetails && (
+            <div className="grid gap-4">
+              <div className="flex items-center gap-4">
+                {userDetails.image ? (
+                  <img 
+                    src={userDetails.image} 
+                    alt={userDetails.name} 
+                    className="w-16 h-16 rounded-full" 
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-16 h-16 bg-gray-200 rounded-full">
+                    <UserIcon className="h-8 w-8 text-gray-500" />
+                  </div>
+                )}
+                
+                <div className="flex-1">
+                  <h3 className="text-lg font-medium">{userDetails.name}</h3>
+                  <p className="text-sm text-gray-500">{userDetails.email}</p>
+                  <div className="flex gap-2 mt-1">
+                    <Badge variant={userDetails.role === "ADMIN" ? "destructive" : "outline"}>
+                      {userDetails.role}
+                    </Badge>
+                    <Badge variant={userDetails.status === "ACTIVE" ? "default" : "destructive"}>
+                      {userDetails.status}
+                    </Badge>
+                    {userDetails.isBanned && (
+                      <Badge variant="destructive">BANNED</Badge>
+                    )}
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    handleEditUser(selectedUser);
+                  }}
+                  variant="outline"
+                >
+                  Edit User
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 my-2">
+                <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
+                  <Flame className="h-5 w-5 text-orange-500 mb-1" />
+                  <span className="text-sm text-gray-500">Current Streak</span>
+                  <span className="text-xl font-semibold">{userDetails.currentStreak}</span>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
+                  <Flame className="h-5 w-5 text-red-500 mb-1" />
+                  <span className="text-sm text-gray-500">Best Streak</span>
+                  <span className="text-xl font-semibold">{userDetails.bestStreak}</span>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
+                  <UtensilsCrossed className="h-5 w-5 text-purple-500 mb-1" />
+                  <span className="text-sm text-gray-500">Meals</span>
+                  <span className="text-xl font-semibold">{userDetails.mealCount}</span>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
+                  <Trophy className="h-5 w-5 text-yellow-500 mb-1" />
+                  <span className="text-sm text-gray-500">Quests</span>
+                  <span className="text-xl font-semibold">{userDetails.completedQuests}</span>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
+                  <Coins className="h-5 w-5 text-amber-500 mb-1" />
+                  <span className="text-sm text-gray-500">Score</span>
+                  <span className="text-xl font-semibold">{userDetails.score}</span>
+                </div>
+                
+                <div className="flex flex-col items-center justify-center p-3 border rounded-lg">
+                  <Calendar className="h-5 w-5 text-blue-500 mb-1" />
+                  <span className="text-sm text-gray-500">Joined</span>
+                  <span className="text-xs font-medium">
+                    {format(new Date(userDetails.createdAt), 'MMM d, yyyy')}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Tabs for sections */}
+              <div className="flex border-b space-x-1">
+                <button
+                  onClick={() => setActiveTab("profile")}
+                  className={`px-4 py-2 font-medium ${
+                    activeTab === "profile"
+                      ? "border-b-2 border-blue-500 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Profile
+                </button>
+                <button
+                  onClick={() => setActiveTab("effects")}
+                  className={`px-4 py-2 font-medium flex items-center ${
+                    activeTab === "effects"
+                      ? "border-b-2 border-blue-500 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <Zap className="h-4 w-4 mr-1" />
+                  Active Effects
+                  {userActiveEffects.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{userActiveEffects.length}</Badge>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab("items")}
+                  className={`px-4 py-2 font-medium flex items-center ${
+                    activeTab === "items"
+                      ? "border-b-2 border-blue-500 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <Package className="h-4 w-4 mr-1" />
+                  Items
+                  {userItems.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{userItems.length}</Badge>
+                  )}
+                </button>
+              </div>
+              
+              {/* Profile content */}
+              {activeTab === "profile" && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium mb-2">Account Details</h3>
+                  <div className="space-y-2">
+                    <p>This is the main profile view with additional details if needed.</p>
+                    <p className="text-sm text-gray-500">ID: {userDetails.id}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Active Effects Section */}
+              {activeTab === "effects" && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium mb-2 flex items-center">
+                    <Zap className="h-5 w-5 text-amber-500 mr-2" />
+                    Active Effects
+                  </h3>
+                  
+                  {isLoadingEffects ? (
+                    <div className="flex justify-center my-4">
+                      <div className="animate-spin h-5 w-5 border-t-2 border-b-2 border-gray-900 rounded-full"></div>
+                    </div>
+                  ) : userActiveEffects.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">User has no active effects</p>
+                  ) : (
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Effect</TableHead>
+                            <TableHead>Item</TableHead>
+                            <TableHead>Expires</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {userActiveEffects.map((effect) => (
+                            <TableRow key={effect.id} className={!effect.isActive ? "bg-gray-50" : ""}>
+                              <TableCell>
+                                <div className="flex items-center">
+                                  {effect.type === "SCORE_MULTIPLIER" && (
+                                    <Coins className="h-4 w-4 text-yellow-500 mr-2" />
+                                  )}
+                                  {effect.type === "STREAK_PROTECT" && (
+                                    <Shield className="h-4 w-4 text-blue-500 mr-2" />
+                                  )}
+                                  {effect.type === "ATTACK_BOOST" && (
+                                    <Sword className="h-4 w-4 text-red-500 mr-2" />
+                                  )}
+                                  {effect.type === "TIME_EXTENSION" && (
+                                    <Clock className="h-4 w-4 text-green-500 mr-2" />
+                                  )}
+                                  <span className={!effect.isActive ? "text-gray-400" : ""}>
+                                    {effect.type.replace(/_/g, " ")}
+                                    {effect.multiplier && ` (${effect.multiplier}x)`}
+                                    {effect.timeExtension && ` (${effect.timeExtension} min)`}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {effect.item?.name || "Unknown Item"}
+                              </TableCell>
+                              <TableCell>
+                                <span className={effect.isActive ? "text-green-600 font-medium" : "text-red-500"}>
+                                  {effect.isActive 
+                                    ? `Expires: ${format(new Date(effect.expiresAt), 'MMM d, h:mm a')}`
+                                    : `Expired: ${format(new Date(effect.expiresAt), 'MMM d, h:mm a')}`}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteEffect(effect.id)}
+                                  title="Delete Effect"
+                                >
+                                  <XCircle className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Items Section */}
+              {activeTab === "items" && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium mb-2 flex items-center">
+                    <Package className="h-5 w-5 text-emerald-500 mr-2" />
+                    User Items
+                  </h3>
+                  
+                  {isLoadingItems ? (
+                    <div className="flex justify-center my-4">
+                      <div className="animate-spin h-5 w-5 border-t-2 border-b-2 border-gray-900 rounded-full"></div>
+                    </div>
+                  ) : userItems.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">User has no items</p>
+                  ) : (
+                    <div className="border rounded-md overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Item</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Quantity</TableHead>
+                            <TableHead>Cooldown Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {userItems.map((userItem) => (
+                            <TableRow key={userItem.id}>
+                              <TableCell>
+                                <div className="flex items-center">
+                                  {userItem.item.imageUrl && (
+                                    <img 
+                                      src={userItem.item.imageUrl} 
+                                      alt={userItem.item.name} 
+                                      className="h-8 w-8 rounded-md mr-2 object-cover" 
+                                    />
+                                  )}
+                                  <div>
+                                    <div className="font-medium">{userItem.item.name}</div>
+                                    <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                                      {userItem.item.description}
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {userItem.item.type.replace(/_/g, " ")}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {userItem.quantity}
+                              </TableCell>
+                              <TableCell>
+                                {userItem.cooldownStatus ? (
+                                  <div className="flex items-center">
+                                    <Clock className="h-4 w-4 text-orange-500 mr-1" />
+                                    <span className="text-sm text-orange-600">
+                                      {`${Math.floor(userItem.cooldownStatus.timeRemaining / 60)}m ${userItem.cooldownStatus.timeRemaining % 60}s`}
+                                    </span>
+                                  </div>
+                                ) : userItem.lastUsed ? (
+                                  <span className="text-sm text-green-600">Ready to use</span>
+                                ) : (
+                                  <span className="text-sm text-gray-500">Never used</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right space-x-1">
+                                {userItem.cooldownStatus && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleClearCooldown(userItem.id)}
+                                    title="Clear Cooldown"
+                                  >
+                                    <TimerReset className="h-4 w-4 text-blue-500" />
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteItem(userItem.id)}
+                                  title="Delete Item"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   return (
@@ -446,67 +955,7 @@ export default function AdminUsersPage({ users }: AdminUsersPageProps) {
       </div>
       
       {/* View User Details Dialog */}
-      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>User Details</DialogTitle>
-            <DialogDescription>
-              Detailed information about the user.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {isLoading && (
-            <div className="py-8 text-center">
-              Loading user details...
-            </div>
-          )}
-          
-          {!isLoading && userDetails && (
-            <div className="space-y-4 py-4">
-              <div className="flex items-center space-x-4">
-                <img 
-                  src={userDetails.image || "https://github.com/shadcn.png"} 
-                  alt={userDetails.name}
-                  className="h-20 w-20 rounded-full" 
-                />
-                <div>
-                  <h3 className="text-lg font-semibold">{userDetails.name}</h3>
-                  <p className="text-sm text-muted-foreground">{userDetails.email}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Account</h4>
-                  <p className="text-sm">Role: {userDetails.role}</p>
-                  <p className="text-sm">Status: {userDetails.status}</p>
-                  <p className="text-sm">Joined: {format(new Date(userDetails.createdAt), "PPP")}</p>
-                  <p className="text-sm flex items-center gap-1">
-                    <Coins className="h-4 w-4 text-amber-500" />
-                    Score: {userDetails.score || 0}
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <h4 className="font-medium">Stats</h4>
-                  <p className="text-sm">Current Streak: {userDetails.currentStreak}</p>
-                  <p className="text-sm">Best Streak: {userDetails.bestStreak}</p>
-                  <p className="text-sm">Total Meals: {userDetails.mealCount}</p>
-                  <p className="text-sm">Completed Quests: {userDetails.completedQuests}</p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>Close</Button>
-            <Button onClick={() => {
-              setViewDialogOpen(false);
-              if (selectedUser) handleEditUser(selectedUser);
-            }}>Edit User</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ViewUserDialog />
       
       {/* Edit User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

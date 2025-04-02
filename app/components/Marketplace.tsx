@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useToast } from "@/lib/use-toast-hook";
 import { Button } from "@/components/ui/button";
 import {
   Card,
- 
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -49,7 +47,6 @@ export default function Marketplace() {
   const [items, setItems] = useState<Item[]>([]);
   const [userScore, setUserScore] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [dialogAction, setDialogAction] = useState<"purchase" | "use">("purchase");
@@ -60,7 +57,6 @@ export default function Marketplace() {
   const [selectedTargetId, setSelectedTargetId] = useState<string>("");
   const [needsTarget, setNeedsTarget] = useState(false);
   
-  const router = useRouter();
   const { toast } = useToast();
 
   const fetchItems = useCallback(async () => {
@@ -101,16 +97,55 @@ export default function Marketplace() {
     }
   }, []);
 
+  // Add a debug function to help diagnose cooldown issues
+  const logItemDetails = useCallback((items: Item[]) => {
+    if (items && items.length > 0) {
+      console.group('Item Cooldown Debug');
+      items.filter(item => item.lastUsed).forEach(item => {
+        console.log(`Item ${item.name} (${item.id}):`);
+        console.log(`- Last used: ${item.lastUsed}`);
+        console.log(`- Cooldown: ${item.cooldown} seconds`);
+        
+        if (item.lastUsed && item.cooldown) {
+          const lastUsedDate = new Date(item.lastUsed);
+          const cooldownMs = item.cooldown * 1000;
+          const currentTime = new Date().getTime();
+          const elapsedMs = currentTime - lastUsedDate.getTime();
+          const remainingMs = Math.max(0, cooldownMs - elapsedMs);
+          
+          console.log(`- Elapsed time: ${Math.floor(elapsedMs / 1000)} seconds`);
+          console.log(`- Remaining time: ${Math.floor(remainingMs / 1000)} seconds`);
+          console.log(`- Is on cooldown: ${remainingMs > 0 ? 'Yes' : 'No'}`);
+        }
+      });
+      console.groupEnd();
+    }
+  }, []);
+
   useEffect(() => {
     fetchItems();
     fetchUsers();
   }, [fetchItems, fetchUsers]);
 
+  // Add debug logging when items are loaded
+  useEffect(() => {
+    if (!loading && items.length > 0) {
+      logItemDetails(items);
+    }
+  }, [loading, items, logItemDetails]);
+
+  // Determine if an item needs a target user
+  const itemNeedsTarget = (item: Item) => {
+    return item.effect === "STREAK_DECREASE";
+  };
+
   const handleItemAction = (item: Item, action: "purchase" | "use") => {
     setSelectedItem(item);
     setDialogAction(action);
     
-    setNeedsTarget(action === "use" && item.effect === "STREAK_DECREASE");
+    // Check if this item needs a target and set state accordingly
+    const needsTargetUser = action === "use" && itemNeedsTarget(item);
+    setNeedsTarget(needsTargetUser);
     setSelectedTargetId("");
     
     setActionDialogOpen(true);
@@ -182,6 +217,8 @@ export default function Marketplace() {
 
   const handleUseItem = async (itemId: string, targetUserId?: string) => {
     try {
+      console.log("Using item", itemId, "with target:", targetUserId || "none");
+      
       const response = await fetch("/api/items/use", {
         method: "POST",
         headers: {
@@ -204,8 +241,20 @@ export default function Marketplace() {
         description: data.effect || data.message || "Item effect applied",
       });
 
-      // Refresh items
+      // Refresh items right away
       fetchItems();
+      
+      // For Magic Wand and other critical items, fetch again after a delay 
+      // to ensure cooldown is properly displayed
+      const usedItem = items.find(item => item.id === itemId);
+      if (usedItem?.effect === "STREAK_DECREASE") {
+        console.log("Scheduling delayed refresh for Magic Wand cooldown");
+        // Refresh data again after a short delay to ensure cooldown is properly applied
+        setTimeout(() => {
+          console.log("Performing delayed refresh for cooldown");
+          fetchItems();
+        }, 1000);
+      }
     } catch (error) {
       console.error("Error using item:", error);
       toast({
@@ -217,12 +266,6 @@ export default function Marketplace() {
       // Refresh items to ensure UI is consistent
       fetchItems();
     }
-  };
-
-  const formatItemType = (type: string) => {
-    return type.split("_").map(word => 
-      word.charAt(0) + word.slice(1).toLowerCase()
-    ).join(" ");
   };
 
   if (loading) {
@@ -328,99 +371,66 @@ export default function Marketplace() {
       </Tabs>
 
       {/* Action dialog (purchase or use) */}
-      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {dialogAction === "purchase" 
-                ? `Purchase ${selectedItem?.name}` 
-                : `Use ${selectedItem?.name}`}
-            </DialogTitle>
-            <DialogDescription>
-              {dialogAction === "purchase" && isAdmin 
-                ? "As an admin, you can purchase items without spending points."
-                : dialogAction === "purchase" 
-                  ? `Are you sure you want to spend ${selectedItem?.price} score points to purchase this item?`
-                  : `Are you sure you want to use this item? This will consume 1 from your inventory.`}
-            </DialogDescription>
-            {dialogAction === "use" && selectedItem?.effect && (
-              <div className="mt-2 p-2 bg-primary/10 rounded-md text-sm">
-                <span className="font-semibold">Effect:</span> {selectedItem.effect}
-              </div>
-            )}
-          </DialogHeader>
-          {selectedItem && (
-            <div className="py-4">
-              {selectedItem.description && (
-                <p className="text-sm text-gray-500 mb-2">{selectedItem.description}</p>
-              )}
-              {dialogAction === "purchase" && (
-                <div className="flex justify-between text-sm">
-                  <span>Your Score:</span>
-                  <span>{userScore} 🏆 {isAdmin && "(Admin: Free purchase)"}</span>
-                </div>
-              )}
-              {dialogAction === "use" && (
-                <div className="flex justify-between text-sm">
-                  <span>Your Quantity:</span>
-                  <span>{selectedItem.quantity}</span>
-                </div>
-              )}
-              {dialogAction === "use" && selectedItem.cooldown && selectedItem.cooldown > 0 && (
-                <div className="mt-2 flex justify-between text-sm">
-                  <span>Cooldown After Use:</span>
-                  <span>{selectedItem.cooldown} hour{selectedItem.cooldown !== 1 ? 's' : ''}</span>
-                </div>
-              )}
-              
-              {/* Target user selection for attack items */}
-              {needsTarget && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium mb-2">Select Target User:</p>
+      {actionDialogOpen && selectedItem && (
+        <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>{dialogAction === "purchase" ? "Purchase Item" : "Use Item"}</DialogTitle>
+              <DialogDescription>
+                {dialogAction === "purchase" 
+                  ? `Do you want to purchase ${selectedItem.name} for ${selectedItem.price} points?` 
+                  : `Are you sure you want to use ${selectedItem.name}?`}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {needsTarget && (
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Select Target User</h4>
+                  <p className="text-sm text-muted-foreground">
+                    This item requires a target user to apply its effect.
+                  </p>
                   <Select value={selectedTargetId} onValueChange={setSelectedTargetId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a user to target" />
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a user" />
                     </SelectTrigger>
                     <SelectContent>
-                      {users.map(user => (
+                      {users.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    The selected user will have their streak decreased by 1 if they don&apos;t have active protection.
-                  </p>
                 </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setActionDialogOpen(false)}
-              disabled={actionLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmAction}
-              disabled={actionLoading || (needsTarget && !selectedTargetId)}
-              variant={dialogAction === "use" ? "default" : "default"}
-            >
-              {actionLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                dialogAction === "purchase" ? `Confirm ${isAdmin ? "Admin " : ""}Purchase` : "Use Item"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </div>
+            )}
+            
+            <DialogFooter className="sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setActionDialogOpen(false)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmAction}
+                disabled={actionLoading || (needsTarget && !selectedTargetId)}
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {dialogAction === "purchase" ? "Purchasing..." : "Using..."}
+                  </>
+                ) : (
+                  <>{dialogAction === "purchase" ? "Purchase" : "Use"}</>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 } 
